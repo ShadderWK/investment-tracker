@@ -54,6 +54,10 @@ export default function AssetDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [chartRange, setChartRange] = useState<"1m" | "3m" | "6m" | "1y" | "all">("all");
+  const [editTx, setEditTx] = useState<Transaction | null>(null);
+  const [editForm, setEditForm] = useState({ tx_type: "buy", amount: "", total_value: "", date: "" });
+  const [editing, setEditing] = useState(false);
+  const [editError, setEditError] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -133,6 +137,54 @@ export default function AssetDetailPage() {
     }),
     [historyRows]
   );
+
+  function openEdit(r: HistoryRow) {
+    const tx = txs.find((t) => t.id === r.id);
+    if (!tx) return;
+    setEditTx(tx);
+    setEditForm({
+      tx_type: tx.tx_type,
+      amount: String(tx.amount),
+      total_value: String(tx.total_value),
+      date: tx.date,
+    });
+    setEditError("");
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editTx) return;
+    if (editForm.amount === "" || parseFloat(editForm.amount) < 0) { setEditError("กรุณากรอกจำนวนเงิน (≥ 0)"); return; }
+    if (!editForm.total_value || parseFloat(editForm.total_value) < 0) { setEditError("กรุณากรอกมูลค่ารวม (≥ 0)"); return; }
+    if (!editForm.date) { setEditError("กรุณาเลือกวันที่"); return; }
+    setEditing(true);
+    setEditError("");
+    const { error } = await supabase
+      .from("transactions")
+      .update({
+        tx_type: editForm.tx_type,
+        amount: parseFloat(editForm.amount),
+        total_value: parseFloat(editForm.total_value),
+        date: editForm.date,
+      })
+      .eq("id", editTx.id);
+    if (error) {
+      setEditError("แก้ไขไม่สำเร็จ: " + error.message);
+      setEditing(false);
+      return;
+    }
+    setTxs((prev) =>
+      prev
+        .map((t) =>
+          t.id === editTx.id
+            ? { ...t, tx_type: editForm.tx_type, amount: parseFloat(editForm.amount), total_value: parseFloat(editForm.total_value), date: editForm.date }
+            : t
+        )
+        .sort((a, b) => a.date.localeCompare(b.date))
+    );
+    setEditTx(null);
+    setEditing(false);
+  }
 
   async function handleDelete() {
     if (!confirmDelete) return;
@@ -313,7 +365,7 @@ export default function AssetDetailPage() {
                   <th className="text-right px-5 py-3 font-medium">ต้นทุนสะสม</th>
                   <th className="text-right px-5 py-3 font-medium">มูลค่ารวม</th>
                   <th className="text-right px-5 py-3 font-medium">กำไร / ขาดทุน</th>
-                  <th className="px-3 py-3 font-medium w-12"></th>
+                  <th className="px-3 py-3 font-medium w-20"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
@@ -348,15 +400,26 @@ export default function AssetDetailPage() {
                         </p>
                       </td>
                       <td className="px-3 py-4 text-right">
-                        <button
-                          onClick={() => { setDeleteError(""); setConfirmDelete(r); }}
-                          aria-label="ลบรายการนี้"
-                          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
-                          </svg>
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => openEdit(r)}
+                            aria-label="แก้ไขรายการนี้"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-900/20 transition"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => { setDeleteError(""); setConfirmDelete(r); }}
+                            aria-label="ลบรายการนี้"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -374,6 +437,92 @@ export default function AssetDetailPage() {
         </div>
 
       </div>
+
+      {editTx && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
+          onClick={() => !editing && setEditTx(null)}
+        >
+          <div
+            className="bg-gray-900 rounded-2xl shadow-xl border border-gray-700 max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-gray-100 mb-4">แก้ไขรายการ</h3>
+            <form onSubmit={handleEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">รายการ</label>
+                <select
+                  value={editForm.tx_type}
+                  onChange={(e) => setEditForm({ ...editForm, tx_type: e.target.value })}
+                  className="w-full px-3 py-2.5 text-sm text-gray-100 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="buy">ซื้อ / DCA</option>
+                  <option value="sell">ขาย</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">จำนวนเงิน (บาท)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">฿</span>
+                  <input
+                    type="number"
+                    value={editForm.amount}
+                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                    placeholder="0.00"
+                    min="0"
+                    step="any"
+                    className="w-full pl-7 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">มูลค่ารวม ณ วันที่ (บาท)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">฿</span>
+                  <input
+                    type="number"
+                    value={editForm.total_value}
+                    onChange={(e) => setEditForm({ ...editForm, total_value: e.target.value })}
+                    placeholder="0.00"
+                    min="0"
+                    step="any"
+                    className="w-full pl-7 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">วันที่</label>
+                <input
+                  type="date"
+                  value={editForm.date}
+                  onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                  className="w-full px-3 py-2.5 text-sm text-gray-100 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {editError && (
+                <p className="text-xs text-red-400 bg-red-950 border border-red-900 rounded-lg px-3 py-2">{editError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditTx(null)}
+                  disabled={editing}
+                  className="flex-1 px-4 py-2.5 text-sm text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800 transition disabled:opacity-50"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={editing}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition"
+                >
+                  {editing ? "กำลังบันทึก..." : "บันทึก"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <div
