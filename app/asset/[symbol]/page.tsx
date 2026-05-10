@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { ValueChart, type ChartMarker, type ChartRow } from "@/app/_components/ValueChart";
+import { Pagination } from "@/app/_components/Pagination";
 
 type Transaction = {
   id: string;
@@ -35,107 +37,7 @@ function fmtDate(s: string) {
   return d.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
 }
 
-type ChartRow = {
-  x: number;
-  date: string;
-  cumulativeCost: number;
-  totalValue: number;
-  amount: number;
-  txType: string;
-};
-
-function ValueChart({ rows }: { rows: ChartRow[] }) {
-  const W = 720;
-  const H = 300;
-  const PAD = { top: 20, right: 20, bottom: 36, left: 64 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
-
-  if (rows.length === 0) return null;
-
-  const xs = rows.map((p) => p.x);
-  const xMin = Math.min(...xs);
-  const xMax = Math.max(...xs);
-
-  const allYs = rows.flatMap((p) => [p.cumulativeCost, p.totalValue]);
-  const yMin = Math.min(...allYs);
-  const yMax = Math.max(...allYs);
-  const yPad = (yMax - yMin) * 0.1 || yMax * 0.1 || 1;
-  const yLo = Math.max(0, yMin - yPad);
-  const yHi = yMax + yPad;
-
-  const sx = (x: number) =>
-    xMax === xMin ? PAD.left + innerW / 2 : PAD.left + ((x - xMin) / (xMax - xMin)) * innerW;
-  const sy = (y: number) => PAD.top + innerH - ((y - yLo) / (yHi - yLo)) * innerH;
-
-  const valuePath = rows.map((p, i) => `${i === 0 ? "M" : "L"} ${sx(p.x)} ${sy(p.totalValue)}`).join(" ");
-  const costPath = rows.map((p, i) => `${i === 0 ? "M" : "L"} ${sx(p.x)} ${sy(p.cumulativeCost)}`).join(" ");
-  const areaPath =
-    `M ${sx(rows[0].x)} ${PAD.top + innerH} ` +
-    rows.map((p) => `L ${sx(p.x)} ${sy(p.totalValue)}`).join(" ") +
-    ` L ${sx(rows[rows.length - 1].x)} ${PAD.top + innerH} Z`;
-
-  const yTicks = 4;
-  const yTickVals = Array.from({ length: yTicks + 1 }, (_, i) => yLo + ((yHi - yLo) * i) / yTicks);
-  const xTickCount = Math.min(6, rows.length);
-  const xTickIdx = Array.from({ length: xTickCount }, (_, i) =>
-    Math.round((i * (rows.length - 1)) / Math.max(1, xTickCount - 1))
-  );
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
-      <defs>
-        <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {yTickVals.map((v, i) => (
-        <g key={`y-${i}`}>
-          <line x1={PAD.left} x2={PAD.left + innerW} y1={sy(v)} y2={sy(v)} stroke="#e5e7eb" strokeDasharray="3 3" />
-          <text x={PAD.left - 8} y={sy(v) + 4} textAnchor="end" fontSize="10" fill="#6b7280">
-            ฿{v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}
-          </text>
-        </g>
-      ))}
-
-      <path d={areaPath} fill="url(#areaFill)" />
-      <path d={costPath} fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="5 4" />
-      <path d={valuePath} fill="none" stroke="#3b82f6" strokeWidth="2" />
-
-      {rows.map((p, i) => {
-        const isSell = p.txType === "sell";
-        const isSnapshot = p.amount === 0;
-        const fill = isSnapshot ? "#9ca3af" : isSell ? "#ef4444" : "#16a34a";
-        return (
-          <circle
-            key={`pt-${i}`}
-            cx={sx(p.x)}
-            cy={sy(p.totalValue)}
-            r="4.5"
-            fill={fill}
-            stroke="white"
-            strokeWidth="2"
-          >
-            <title>
-              {`${fmtDate(p.date)}\n${isSnapshot ? "Snapshot" : isSell ? "ขาย" : "ซื้อ"} ฿${fmt(p.amount)}\nต้นทุนรวม ฿${fmt(p.cumulativeCost)}\nมูลค่ารวม ฿${fmt(p.totalValue)}\nกำไร ${p.totalValue - p.cumulativeCost >= 0 ? "+" : ""}฿${fmt(p.totalValue - p.cumulativeCost)}`}
-            </title>
-          </circle>
-        );
-      })}
-
-      {xTickIdx.map((idx, i) => {
-        const p = rows[idx];
-        return (
-          <text key={`x-${i}`} x={sx(p.x)} y={H - 12} textAnchor="middle" fontSize="10" fill="#6b7280">
-            {fmtDate(p.date)}
-          </text>
-        );
-      })}
-    </svg>
-  );
-}
+type HistoryRow = ChartRow & { amount: number; txType: string };
 
 export default function AssetDetailPage() {
   const router = useRouter();
@@ -145,6 +47,8 @@ export default function AssetDetailPage() {
   const [loading, setLoading] = useState(true);
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [notFound, setNotFound] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     (async () => {
@@ -192,7 +96,7 @@ export default function AssetDetailPage() {
     return { totalCost, currentValue: lastValue, pl, plPct, assetType, txCount: txs.length };
   }, [txs]);
 
-  const chartRows: ChartRow[] = useMemo(() => {
+  const historyRows: HistoryRow[] = useMemo(() => {
     let cum = 0;
     return txs.map((t) => {
       const delta = t.tx_type === "sell" ? -Number(t.amount) : Number(t.amount);
@@ -207,6 +111,28 @@ export default function AssetDetailPage() {
       };
     });
   }, [txs]);
+
+  const chartMarkers: ChartMarker[] = useMemo(
+    () => historyRows.map((r) => {
+      const isSell = r.txType === "sell";
+      const isSnapshot = r.amount === 0;
+      const color = isSnapshot ? "#9ca3af" : isSell ? "#ef4444" : "#16a34a";
+      const pl = r.totalValue - r.cumulativeCost;
+      return {
+        x: r.x,
+        y: r.totalValue,
+        color,
+        title: `${fmtDate(r.date)}\n${isSnapshot ? "Snapshot" : isSell ? "ขาย" : "ซื้อ"} ฿${fmt(r.amount)}\nต้นทุนรวม ฿${fmt(r.cumulativeCost)}\nมูลค่ารวม ฿${fmt(r.totalValue)}\nกำไร ${pl >= 0 ? "+" : ""}฿${fmt(pl)}`,
+      };
+    }),
+    [historyRows]
+  );
+
+  const sortedHistory = useMemo(() => [...historyRows].reverse(), [historyRows]);
+  const pagedHistory = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sortedHistory.slice(start, start + pageSize);
+  }, [sortedHistory, page, pageSize]);
 
   if (loading) {
     return (
@@ -294,8 +220,8 @@ export default function AssetDetailPage() {
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" />Snapshot</span>
             </div>
           </div>
-          {chartRows.length >= 2 ? (
-            <ValueChart rows={chartRows} />
+          {historyRows.length >= 2 ? (
+            <ValueChart rows={historyRows} markers={chartMarkers} />
           ) : (
             <div className="text-center py-12 text-sm text-gray-400">
               ต้องมีรายการอย่างน้อย 2 ครั้งเพื่อแสดงกราฟ
@@ -321,7 +247,7 @@ export default function AssetDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {[...chartRows].reverse().map((r, i) => {
+                {pagedHistory.map((r, i) => {
                   const isSell = r.txType === "sell";
                   const isSnapshot = r.amount === 0;
                   const pl = r.totalValue - r.cumulativeCost;
@@ -357,6 +283,13 @@ export default function AssetDetailPage() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            total={sortedHistory.length}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
 
       </div>
