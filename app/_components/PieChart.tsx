@@ -38,7 +38,7 @@ export function PieChart({ slices }: { slices: PieSlice[] }) {
 
   const total = slices.reduce((s, x) => s + x.value, 0);
   if (total <= 0) {
-    return <div className="text-center py-12 text-sm text-gray-400">ยังไม่มีมูลค่าให้แสดง</div>;
+    return <div className="text-center py-12 text-sm text-gray-500">ยังไม่มีมูลค่าให้แสดง</div>;
   }
 
   const cx = 150;
@@ -84,13 +84,13 @@ export function PieChart({ slices }: { slices: PieSlice[] }) {
             );
           })}
 
-          <text x={cx} y={cy - 8} textAnchor="middle" fontSize="11" fill="#6b7280">
+          <text x={cx} y={cy - 8} textAnchor="middle" fontSize="11" fill="#9ca3af">
             {center ? center.slice.label : "มูลค่ารวม"}
           </text>
-          <text x={cx} y={cy + 14} textAnchor="middle" fontSize="18" fontWeight="600" fill="#111827">
+          <text x={cx} y={cy + 14} textAnchor="middle" fontSize="18" fontWeight="600" fill="#f9fafb">
             ฿{center ? fmt(center.slice.value) : fmt(total)}
           </text>
-          <text x={cx} y={cy + 32} textAnchor="middle" fontSize="11" fill="#6b7280">
+          <text x={cx} y={cy + 32} textAnchor="middle" fontSize="11" fill="#9ca3af">
             {center ? `${center.pct.toFixed(2)}%` : `${slices.length} สินทรัพย์`}
           </text>
         </svg>
@@ -105,21 +105,21 @@ export function PieChart({ slices }: { slices: PieSlice[] }) {
               onMouseEnter={() => setHoverIdx(a.idx)}
               onMouseLeave={() => setHoverIdx(null)}
               className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg cursor-pointer transition ${
-                isHover ? "bg-gray-100" : "hover:bg-gray-50"
+                isHover ? "bg-gray-800" : "hover:bg-gray-800/50"
               }`}
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: a.color }} />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{a.slice.label}</p>
+                  <p className="text-sm font-medium text-gray-100 truncate">{a.slice.label}</p>
                   {a.slice.sublabel && (
-                    <p className="text-xs text-gray-500 truncate">{a.slice.sublabel}</p>
+                    <p className="text-xs text-gray-400 truncate">{a.slice.sublabel}</p>
                   )}
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-sm font-medium text-gray-900">{a.pct.toFixed(2)}%</p>
-                <p className="text-xs text-gray-500">฿{fmt(a.slice.value)}</p>
+                <p className="text-sm font-medium text-gray-100">{a.pct.toFixed(2)}%</p>
+                <p className="text-xs text-gray-400">฿{fmt(a.slice.value)}</p>
               </div>
             </div>
           );

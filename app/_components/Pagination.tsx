@@ -21,13 +21,13 @@ export function Pagination({
   const endIdx = Math.min(total, safePage * pageSize);
 
   return (
-    <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-t border-gray-100 text-xs text-gray-600">
+    <div className="flex items-center justify-between px-5 py-3 bg-gray-900 border-t border-gray-800 text-xs text-gray-400">
       <div className="flex items-center gap-2">
         <span>แสดง</span>
         <select
           value={pageSize}
           onChange={(e) => { onPageSizeChange(Number(e.target.value)); onPageChange(1); }}
-          className="px-2 py-1 border border-gray-200 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="px-2 py-1 border border-gray-700 rounded bg-gray-800 text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           {pageSizeOptions.map((n) => (
             <option key={n} value={n}>{n}</option>
@@ -44,15 +44,15 @@ export function Pagination({
           <button
             onClick={() => onPageChange(safePage - 1)}
             disabled={safePage <= 1}
-            className="px-2 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="px-2 py-1 border border-gray-700 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             ← ก่อนหน้า
           </button>
-          <span className="px-3 text-gray-700">หน้า {safePage} / {totalPages}</span>
+          <span className="px-3 text-gray-300">หน้า {safePage} / {totalPages}</span>
           <button
             onClick={() => onPageChange(safePage + 1)}
             disabled={safePage >= totalPages}
-            className="px-2 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="px-2 py-1 border border-gray-700 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             ถัดไป →
           </button>

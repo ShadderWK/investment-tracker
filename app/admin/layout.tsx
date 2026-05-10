@@ -27,7 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (authorized === null) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <main className="min-h-screen bg-gray-950 flex items-center justify-center">
         <p className="text-gray-400 text-sm">กำลังตรวจสอบสิทธิ์...</p>
       </main>
     );
@@ -35,12 +35,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!authorized) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 max-w-md text-center">
+      <main className="min-h-screen bg-gray-950 flex items-center justify-center p-6">
+        <div className="bg-gray-900 rounded-2xl border border-gray-700 p-8 max-w-md text-center">
           <p className="text-4xl mb-3">🔒</p>
-          <p className="text-base font-semibold text-gray-900">ไม่มีสิทธิ์เข้าถึง</p>
-          <p className="text-sm text-gray-500 mt-1">หน้านี้สำหรับผู้ดูแลระบบเท่านั้น</p>
-          <Link href="/" className="inline-block mt-4 text-sm text-blue-600 hover:underline">← กลับ Dashboard</Link>
+          <p className="text-base font-semibold text-gray-100">ไม่มีสิทธิ์เข้าถึง</p>
+          <p className="text-sm text-gray-400 mt-1">หน้านี้สำหรับผู้ดูแลระบบเท่านั้น</p>
+          <Link href="/" className="inline-block mt-4 text-sm text-blue-400 hover:underline">← กลับ Dashboard</Link>
         </div>
       </main>
     );
@@ -52,13 +52,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
+    <main className="min-h-screen bg-gray-950">
+      <header className="bg-gray-900 border-b border-gray-800">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/admin" className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold">A</span>
-              <span className="font-semibold text-gray-900">Admin</span>
+              <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs font-bold">A</span>
+              <span className="font-semibold text-gray-100">Admin</span>
             </Link>
             <nav className="flex items-center gap-1">
               {tabs.map((t) => {
@@ -68,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     key={t.href}
                     href={t.href}
                     className={`px-3 py-1.5 text-sm rounded-md transition ${
-                      active ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"
+                      active ? "bg-white/10 text-white" : "text-gray-400 hover:bg-gray-800"
                     }`}
                   >
                     {t.label}
@@ -78,8 +78,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-gray-500">{email}</span>
-            <Link href="/" className="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-700">
+            <span className="text-gray-400">{email}</span>
+            <Link href="/" className="px-3 py-1.5 border border-gray-700 rounded-md hover:bg-gray-800 text-gray-300">
               ← Dashboard
             </Link>
           </div>

@@ -86,15 +86,15 @@ export default function AddPage() {
 
   if (success) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <main className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-16 h-16 bg-green-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <p className="text-lg font-semibold text-gray-900">บันทึกสำเร็จ!</p>
-          <p className="text-sm text-gray-500 mt-1">กำลังกลับไปหน้าหลัก...</p>
+          <p className="text-lg font-semibold text-gray-100">บันทึกสำเร็จ!</p>
+          <p className="text-sm text-gray-400 mt-1">กำลังกลับไปหน้าหลัก...</p>
         </div>
       </main>
     );
@@ -106,35 +106,35 @@ export default function AddPage() {
       : null;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
+    <main className="min-h-screen bg-gray-950 p-6">
       <div className="max-w-lg mx-auto">
 
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => router.back()}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-700 bg-gray-900 hover:bg-gray-800 transition"
           >
-            <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">เพิ่มการลงทุน</h1>
-            <p className="text-sm text-gray-500">บันทึกรายการลงทุน (DCA)</p>
+            <h1 className="text-xl font-semibold text-gray-100">เพิ่มการลงทุน</h1>
+            <p className="text-sm text-gray-400">บันทึกรายการลงทุน (DCA)</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-gray-900 rounded-2xl border border-gray-700 p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5">
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">ประเภท</label>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">ประเภท</label>
                 <select
                   name="asset_type"
                   value={form.asset_type}
                   onChange={handleChange}
-                  className="w-full px-3 py-2.5 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3 py-2.5 text-sm text-gray-100 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
                   <option value="fund">กองทุนรวม</option>
                   <option value="etf">ETF</option>
@@ -144,12 +144,12 @@ export default function AddPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">รายการ</label>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">รายการ</label>
                 <select
                   name="tx_type"
                   value={form.tx_type}
                   onChange={handleChange}
-                  className="w-full px-3 py-2.5 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full px-3 py-2.5 text-sm text-gray-100 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 >
                   <option value="buy">ซื้อ / DCA</option>
                   <option value="sell">ขาย</option>
@@ -158,7 +158,7 @@ export default function AddPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">
                 ชื่อสินทรัพย์ / Ticker
               </label>
               <input
@@ -167,16 +167,16 @@ export default function AddPage() {
                 value={form.symbol}
                 onChange={handleChange}
                 placeholder="เช่น KUS500XA, KFIRMF"
-                className="w-full px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition uppercase"
+                className="w-full px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition uppercase"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">
                 จำนวนเงินที่ใส่/ขายครั้งนี้ (บาท)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">฿</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">฿</span>
                 <input
                   type="number"
                   name="amount"
@@ -185,17 +185,17 @@ export default function AddPage() {
                   placeholder="0.00"
                   min="0"
                   step="any"
-                  className="w-full pl-7 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full pl-7 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">
                 มูลค่ารวมของพอร์ตนี้ ณ วันที่ (บาท)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">฿</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">฿</span>
                 <input
                   type="number"
                   name="total_value"
@@ -204,33 +204,33 @@ export default function AddPage() {
                   placeholder="0.00"
                   min="0"
                   step="any"
-                  className="w-full pl-7 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  className="w-full pl-7 pr-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">มูลค่าตลาดรวมของสินทรัพย์นี้หลังรายการนี้</p>
+              <p className="text-xs text-gray-500 mt-1">มูลค่าตลาดรวมของสินทรัพย์นี้หลังรายการนี้</p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">วันที่</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">วันที่</label>
               <input
                 type="date"
                 name="date"
                 value={form.date}
                 onChange={handleChange}
-                className="w-full px-3 py-2.5 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="w-full px-3 py-2.5 text-sm text-gray-100 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               />
             </div>
 
             {profit !== null && (
-              <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm">
-                <p className="text-blue-700 font-medium">
+              <div className="bg-blue-950 rounded-lg px-4 py-3 text-sm">
+                <p className="text-blue-300 font-medium">
                   มูลค่ารวม: ฿{parseFloat(form.total_value || "0").toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                 </p>
               </div>
             )}
 
             {error && (
-              <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              <p className="text-xs text-red-400 bg-red-950 border border-red-900 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
@@ -239,7 +239,7 @@ export default function AddPage() {
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="flex-1 px-4 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                className="flex-1 px-4 py-2.5 text-sm text-gray-400 border border-gray-700 rounded-lg hover:bg-gray-800 transition"
               >
                 ยกเลิก
               </button>

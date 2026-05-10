@@ -37,11 +37,11 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  stock: "bg-blue-100 text-blue-700",
-  crypto: "bg-purple-100 text-purple-700",
-  gold: "bg-amber-100 text-amber-700",
-  etf: "bg-green-100 text-green-700",
-  fund: "bg-indigo-100 text-indigo-700",
+  stock: "bg-blue-900/50 text-blue-300",
+  crypto: "bg-purple-900/50 text-purple-300",
+  gold: "bg-amber-900/50 text-amber-300",
+  etf: "bg-green-900/50 text-green-300",
+  fund: "bg-indigo-900/50 text-indigo-300",
 };
 
 function fmt(n: number) {
@@ -254,8 +254,8 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-400 text-sm">กำลังโหลดข้อมูล...</p>
+      <main className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <p className="text-gray-500 text-sm">กำลังโหลดข้อมูล...</p>
       </main>
     );
   }
@@ -266,18 +266,18 @@ export default function DashboardPage() {
   const totalPLPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
+    <main className="min-h-screen bg-gray-950 p-6">
       <div className="max-w-5xl mx-auto">
 
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Portfolio Dashboard</h1>
-            <p className="text-sm text-gray-500 mt-1">ภาพรวมการลงทุนของคุณ</p>
+            <h1 className="text-2xl font-semibold text-gray-50">Portfolio Dashboard</h1>
+            <p className="text-sm text-gray-400 mt-1">ภาพรวมการลงทุนของคุณ</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">{userName}</p>
-              <p className="text-xs text-gray-400">{userEmail}</p>
+              <p className="text-sm font-medium text-gray-100">{userName}</p>
+              <p className="text-xs text-gray-500">{userEmail}</p>
             </div>
             <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
               {userName.slice(0, 1).toUpperCase()}
@@ -285,7 +285,7 @@ export default function DashboardPage() {
             {admin && (
               <Link
                 href="/admin"
-                className="px-3 py-2 text-sm text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition"
+                className="px-3 py-2 text-sm text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
               >
                 Admin
               </Link>
@@ -293,7 +293,7 @@ export default function DashboardPage() {
             <button
               onClick={handleLogout}
               disabled={loggingOut}
-              className="px-3 py-2 text-sm text-gray-600 hover:text-red-500 border border-gray-200 hover:border-red-200 rounded-lg transition disabled:opacity-50"
+              className="px-3 py-2 text-sm text-gray-400 hover:text-red-400 border border-gray-700 hover:border-red-700 rounded-lg transition disabled:opacity-50"
             >
               {loggingOut ? "กำลังออก..." : "ออกจากระบบ"}
             </button>
@@ -302,14 +302,14 @@ export default function DashboardPage() {
 
         <div className="flex items-center justify-end gap-2 mb-3">
           {pricesFetchedAt && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-500">
               อัปเดตเมื่อ {new Date(pricesFetchedAt).toLocaleTimeString("th-TH")}
             </span>
           )}
           <button
             onClick={refreshPrices}
             disabled={refreshingPrices}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-700 disabled:opacity-50 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-700 rounded-lg bg-gray-900 hover:bg-gray-800 text-gray-300 disabled:opacity-50 transition"
           >
             <svg className={`w-3.5 h-3.5 ${refreshingPrices ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -319,45 +319,45 @@ export default function DashboardPage() {
         </div>
 
         {livePriceError && (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+          <p className="text-xs text-amber-300 bg-amber-950 border border-amber-800 rounded-lg px-3 py-2 mb-3">
             {livePriceError}
           </p>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: "มูลค่ารวม", value: `฿${fmt(totalValue)}`, color: "text-gray-900" },
-            { label: "ต้นทุนรวม", value: `฿${fmt(totalCost)}`, color: "text-gray-900" },
-            { label: "กำไร / ขาดทุน", value: `${totalPL >= 0 ? "+" : ""}฿${fmt(totalPL)}`, color: totalPL >= 0 ? "text-green-600" : "text-red-500" },
-            { label: "ผลตอบแทน", value: `${totalPLPct >= 0 ? "+" : ""}${totalPLPct.toFixed(2)}%`, color: totalPLPct >= 0 ? "text-green-600" : "text-red-500" },
+            { label: "มูลค่ารวม", value: `฿${fmt(totalValue)}`, color: "text-gray-50" },
+            { label: "ต้นทุนรวม", value: `฿${fmt(totalCost)}`, color: "text-gray-50" },
+            { label: "กำไร / ขาดทุน", value: `${totalPL >= 0 ? "+" : ""}฿${fmt(totalPL)}`, color: totalPL >= 0 ? "text-green-400" : "text-red-400" },
+            { label: "ผลตอบแทน", value: `${totalPLPct >= 0 ? "+" : ""}${totalPLPct.toFixed(2)}%`, color: totalPLPct >= 0 ? "text-green-400" : "text-red-400" },
           ].map((m) => (
-            <div key={m.label} className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">{m.label}</p>
+            <div key={m.label} className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+              <p className="text-xs text-gray-400 mb-1">{m.label}</p>
               <p className={`text-xl font-semibold ${m.color}`}>{m.value}</p>
             </div>
           ))}
         </div>
 
         {(series.length >= 2 || pieSlices.length > 0) && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6">
             <div className="flex items-center justify-between mb-4 gap-3">
               <div className="min-w-0">
-                <h2 className="text-sm font-medium text-gray-700">
+                <h2 className="text-sm font-medium text-gray-300">
                   {chartView === "timeline" ? "ภาพรวมพอร์ตตามเวลา" : "อัตราส่วนสินทรัพย์"}
                 </h2>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-gray-500 mt-0.5">
                   {chartView === "timeline"
                     ? "รวมทุกสินทรัพย์ · ชี้เพื่อดูค่า ณ จุดนั้น"
                     : "ตามมูลค่าปัจจุบัน · ชี้สไลซ์เพื่อดูรายละเอียด"}
                 </p>
               </div>
-              <div className="inline-flex bg-gray-100 rounded-lg p-0.5 shrink-0">
+              <div className="inline-flex bg-gray-800 rounded-lg p-0.5 shrink-0">
                 <button
                   onClick={() => setChartView("timeline")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
                     chartView === "timeline"
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-gray-600 text-gray-50 shadow-sm"
+                      : "text-gray-400 hover:text-gray-200"
                   }`}
                 >
                   ตามเวลา
@@ -366,8 +366,8 @@ export default function DashboardPage() {
                   onClick={() => setChartView("allocation")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
                     chartView === "allocation"
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "bg-gray-600 text-gray-50 shadow-sm"
+                      : "text-gray-400 hover:text-gray-200"
                   }`}
                 >
                   อัตราส่วน
@@ -378,7 +378,7 @@ export default function DashboardPage() {
               series.length >= 2 ? (
                 <ValueChart rows={series} />
               ) : (
-                <div className="text-center py-12 text-sm text-gray-400">
+                <div className="text-center py-12 text-sm text-gray-500">
                   ต้องมีข้อมูลอย่างน้อย 2 จุดเพื่อแสดงกราฟตามเวลา
                 </div>
               )
@@ -388,11 +388,11 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-medium text-gray-700">สินทรัพย์ทั้งหมด</h2>
-              <p className="text-xs text-gray-400 mt-0.5">{assets.length} รายการ</p>
+              <h2 className="text-sm font-medium text-gray-300">สินทรัพย์ทั้งหมด</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{assets.length} รายการ</p>
             </div>
             <button
               onClick={() => router.push("/add")}
@@ -406,9 +406,9 @@ export default function DashboardPage() {
           </div>
 
           {assets.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
+            <div className="text-center py-16 text-gray-500">
               <p className="text-4xl mb-3">📭</p>
-              <p className="text-sm font-medium text-gray-500">ยังไม่มีสินทรัพย์</p>
+              <p className="text-sm font-medium text-gray-400">ยังไม่มีสินทรัพย์</p>
               <p className="text-xs mt-1 mb-4">กดปุ่ม &quot;เพิ่มการลงทุน&quot; เพื่อเริ่มต้นบันทึกพอร์ต</p>
               <button
                 onClick={() => router.push("/add")}
@@ -422,7 +422,7 @@ export default function DashboardPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-50 text-xs text-gray-500">
+                    <tr className="bg-gray-800 text-xs text-gray-400">
                       <th className="text-left px-5 py-3 font-medium">ชื่อสินทรัพย์</th>
                       <th className="text-right px-5 py-3 font-medium">รายการ</th>
                       <th className="text-right px-5 py-3 font-medium">ต้นทุนรวม</th>
@@ -430,42 +430,42 @@ export default function DashboardPage() {
                       <th className="text-right px-5 py-3 font-medium">กำไร/ขาดทุน</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-800">
                     {pagedAssets.map((a) => (
                       <tr
                         key={a.symbol}
                         onClick={() => router.push(`/asset/${encodeURIComponent(a.symbol)}`)}
-                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        className="hover:bg-gray-800 transition-colors cursor-pointer"
                       >
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
+                            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-semibold text-gray-300">
                               {a.symbol.slice(0, 2).toUpperCase()}
                             </div>
                             <div>
                               <div className="flex items-center gap-1.5">
-                                <p className="font-medium text-gray-900">{a.symbol}</p>
+                                <p className="font-medium text-gray-100">{a.symbol}</p>
                                 {livePrices[a.symbol] != null && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold flex items-center gap-1">
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/50 text-green-300 font-semibold flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                                     LIVE
                                   </span>
                                 )}
                               </div>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[a.assetType] || "bg-gray-100 text-gray-600"}`}>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[a.assetType] || "bg-gray-800 text-gray-300"}`}>
                                 {TYPE_LABEL[a.assetType] || a.assetType}
                               </span>
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-right text-gray-600">{a.txCount}</td>
-                        <td className="px-5 py-4 text-right text-gray-600">฿{fmt(a.totalCost)}</td>
-                        <td className="px-5 py-4 text-right font-medium text-gray-900">฿{fmt(a.currentValue)}</td>
+                        <td className="px-5 py-4 text-right text-gray-400">{a.txCount}</td>
+                        <td className="px-5 py-4 text-right text-gray-400">฿{fmt(a.totalCost)}</td>
+                        <td className="px-5 py-4 text-right font-medium text-gray-100">฿{fmt(a.currentValue)}</td>
                         <td className="px-5 py-4 text-right">
-                          <p className={`font-medium ${a.pl >= 0 ? "text-green-600" : "text-red-500"}`}>
+                          <p className={`font-medium ${a.pl >= 0 ? "text-green-400" : "text-red-400"}`}>
                             {a.pl >= 0 ? "+" : ""}฿{fmt(a.pl)}
                           </p>
-                          <p className={`text-xs mt-0.5 ${a.plPct >= 0 ? "text-green-500" : "text-red-400"}`}>
+                          <p className={`text-xs mt-0.5 ${a.plPct >= 0 ? "text-green-500" : "text-red-500"}`}>
                             {a.plPct >= 0 ? "+" : ""}{a.plPct.toFixed(2)}%
                           </p>
                         </td>
@@ -485,8 +485,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <p className="text-center text-[11px] text-gray-300 mt-8">
-          สร้างโดย <span className="text-gray-400 font-medium">ShadderWK</span>
+        <p className="text-center text-[11px] text-gray-700 mt-8">
+          สร้างโดย <span className="text-gray-500 font-medium">ShadderWK</span>
         </p>
 
       </div>

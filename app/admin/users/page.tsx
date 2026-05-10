@@ -85,25 +85,25 @@ export default function UsersPage() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Users</h1>
-          <p className="text-sm text-gray-500">{users.length} users · จัดการบัญชีและดูพอร์ต</p>
+          <h1 className="text-xl font-semibold text-gray-100">Users</h1>
+          <p className="text-sm text-gray-400">{users.length} users · จัดการบัญชีและดูพอร์ต</p>
         </div>
         <input
           type="search"
           placeholder="ค้นหา email..."
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+          className="px-3 py-2 text-sm border border-gray-700 rounded-lg bg-gray-800 text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
         />
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">{error}</p>
+        <p className="text-sm text-red-400 bg-red-950 border border-red-900 rounded-lg px-3 py-2 mb-3">{error}</p>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
         {loading ? (
-          <div className="text-center py-16 text-sm text-gray-400">กำลังโหลด...</div>
+          <div className="text-center py-16 text-sm text-gray-500">กำลังโหลด...</div>
         ) : sorted.length === 0 ? (
           <div className="text-center py-16 text-sm text-gray-500">ไม่พบ user</div>
         ) : (
@@ -111,7 +111,7 @@ export default function UsersPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-xs text-gray-500">
+                  <tr className="bg-gray-800 text-xs text-gray-400">
                     <th className="text-left px-5 py-3 font-medium">Email</th>
                     <th className="text-left px-5 py-3 font-medium">สมัคร</th>
                     <th className="text-left px-5 py-3 font-medium">Login ล่าสุด</th>
@@ -122,33 +122,33 @@ export default function UsersPage() {
                     <th className="px-3 py-3 w-24"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-800">
                   {paged.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={u.id} className="hover:bg-gray-800 transition-colors">
                       <td className="px-5 py-3">
-                        <Link href={`/admin/users/${u.id}`} className="font-medium text-gray-900 hover:text-blue-600">
+                        <Link href={`/admin/users/${u.id}`} className="font-medium text-gray-100 hover:text-blue-400">
                           {u.email || "(no email)"}
                         </Link>
                       </td>
-                      <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{fmtDateTime(u.created_at)}</td>
-                      <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{fmtDateTime(u.last_sign_in_at)}</td>
-                      <td className="px-5 py-3 text-right text-gray-600">{u.asset_count}</td>
-                      <td className="px-5 py-3 text-right text-gray-600">{u.tx_count}</td>
-                      <td className="px-5 py-3 text-right font-medium text-gray-900">฿{fmt(u.current_value)}</td>
-                      <td className={`px-5 py-3 text-right font-medium ${u.pl >= 0 ? "text-green-600" : "text-red-500"}`}>
+                      <td className="px-5 py-3 text-gray-400 whitespace-nowrap">{fmtDateTime(u.created_at)}</td>
+                      <td className="px-5 py-3 text-gray-400 whitespace-nowrap">{fmtDateTime(u.last_sign_in_at)}</td>
+                      <td className="px-5 py-3 text-right text-gray-400">{u.asset_count}</td>
+                      <td className="px-5 py-3 text-right text-gray-400">{u.tx_count}</td>
+                      <td className="px-5 py-3 text-right font-medium text-gray-100">฿{fmt(u.current_value)}</td>
+                      <td className={`px-5 py-3 text-right font-medium ${u.pl >= 0 ? "text-green-400" : "text-red-400"}`}>
                         {u.pl >= 0 ? "+" : ""}฿{fmt(u.pl)}
                       </td>
                       <td className="px-3 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Link
                             href={`/admin/users/${u.id}`}
-                            className="px-2 py-1 text-xs text-gray-600 hover:text-blue-600 border border-gray-200 rounded"
+                            className="px-2 py-1 text-xs text-gray-400 hover:text-blue-400 border border-gray-700 rounded"
                           >
                             ดู
                           </Link>
                           <button
                             onClick={() => setConfirmDelete(u)}
-                            className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-red-600 hover:bg-red-50"
+                            className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-red-400 hover:bg-red-900/20"
                             aria-label="ลบ user"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -179,18 +179,18 @@ export default function UsersPage() {
           className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
           onClick={() => !deleting && setConfirmDelete(null)}
         >
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-gray-900 rounded-2xl shadow-xl max-w-sm w-full p-5 border border-gray-700" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-10 h-10 rounded-full bg-red-900/50 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-900">ลบ user นี้?</h3>
-                <p className="text-sm text-gray-500 mt-1">{confirmDelete.email}</p>
-                <p className="text-xs text-red-600 mt-2">⚠️ พอร์ต, transactions, logs จะถูกลบทั้งหมด ย้อนกลับไม่ได้</p>
+                <h3 className="text-base font-semibold text-gray-100">ลบ user นี้?</h3>
+                <p className="text-sm text-gray-400 mt-1">{confirmDelete.email}</p>
+                <p className="text-xs text-red-400 mt-2">⚠️ พอร์ต, transactions, logs จะถูกลบทั้งหมด ย้อนกลับไม่ได้</p>
               </div>
             </div>
 
@@ -198,7 +198,7 @@ export default function UsersPage() {
               <button
                 onClick={() => setConfirmDelete(null)}
                 disabled={deleting}
-                className="flex-1 px-4 py-2.5 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 text-sm text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800 transition disabled:opacity-50"
               >
                 ยกเลิก
               </button>

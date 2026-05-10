@@ -34,15 +34,11 @@ export default function LoginPage() {
     }
 
     if (isRegister) {
-      // --- สมัครสมาชิก ---
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { full_name: name },
-        },
+        options: { data: { full_name: name } },
       });
-
       if (error) {
         setError(error.message);
       } else {
@@ -50,12 +46,7 @@ export default function LoginPage() {
         setSuccess("สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบอีเมลเพื่อยืนยันตัวตนครับ");
       }
     } else {
-      // --- เข้าสู่ระบบ ---
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
       } else {
@@ -70,80 +61,72 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <main className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
 
-        {/* Logo / Title */}
         <div className="text-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
             alt="Logo"
-            className="w-24 h-24 rounded-full object-cover mx-auto mb-3 ring-4 ring-white shadow-md"
+            className="w-24 h-24 rounded-full object-cover mx-auto mb-3 ring-4 ring-gray-700 shadow-md"
           />
-          <h1 className="text-xl font-semibold text-gray-900">Portfolio Tracker</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-xl font-semibold text-gray-50">Portfolio Tracker</h1>
+          <p className="text-sm text-gray-400 mt-1">
             {isRegister ? "สร้างบัญชีใหม่" : "เข้าสู่ระบบเพื่อดูพอร์ตของคุณ"}
           </p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-gray-900 rounded-2xl border border-gray-700 p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Name (เฉพาะหน้า register) */}
             {isRegister && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">ชื่อของคุณ</label>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">ชื่อของคุณ</label>
                 <input
                   type="text"
                   placeholder="กรอกชื่อ"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 />
               </div>
             )}
 
-            {/* Email */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">อีเมล</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">อีเมล</label>
               <input
                 type="email"
                 placeholder="example@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
 
-            {/* Password */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">รหัสผ่าน</label>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">รหัสผ่าน</label>
               <input
                 type="password"
                 placeholder="อย่างน้อย 6 ตัวอักษร"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
 
-            {/* Error */}
             {error && (
-              <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              <p className="text-xs text-red-400 bg-red-950 border border-red-900 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
 
-            {/* Success */}
             {success && (
-              <p className="text-xs text-green-600 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+              <p className="text-xs text-green-400 bg-green-950 border border-green-900 rounded-lg px-3 py-2">
                 {success}
               </p>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -154,28 +137,26 @@ export default function LoginPage() {
 
           </form>
 
-          {/* Divider */}
           <div className="flex items-center gap-3 my-4">
-            <div className="flex-1 h-px bg-gray-100" />
-            <span className="text-xs text-gray-400">หรือ</span>
-            <div className="flex-1 h-px bg-gray-100" />
+            <div className="flex-1 h-px bg-gray-700" />
+            <span className="text-xs text-gray-500">หรือ</span>
+            <div className="flex-1 h-px bg-gray-700" />
           </div>
 
-          {/* Toggle */}
           <button
             onClick={() => { setIsRegister(!isRegister); setError(""); setSuccess(""); }}
-            className="w-full text-sm text-gray-600 hover:text-blue-600 transition text-center"
+            className="w-full text-sm text-gray-400 hover:text-blue-400 transition text-center"
           >
             {isRegister ? "มีบัญชีแล้ว? เข้าสู่ระบบ" : "ยังไม่มีบัญชี? สมัครสมาชิก"}
           </button>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-gray-500 mt-6">
           ข้อมูลของคุณปลอดภัยและเข้ารหัสเสมอ
         </p>
 
-        <p className="text-center text-[11px] text-gray-300 mt-2">
-          สร้างโดย <span className="text-gray-400 font-medium">ShadderWK</span>
+        <p className="text-center text-[11px] text-gray-700 mt-2">
+          สร้างโดย <span className="text-gray-500 font-medium">ShadderWK</span>
         </p>
 
       </div>

@@ -108,26 +108,26 @@ export function ValueChart({ rows, markers }: { rows: ChartRow[]; markers?: Char
       >
         <defs>
           <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
             <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
           </linearGradient>
         </defs>
 
         {yTickVals.map((v, i) => (
           <g key={`y-${i}`}>
-            <line x1={PAD.left} x2={PAD.left + innerW} y1={sy(v)} y2={sy(v)} stroke="#e5e7eb" strokeDasharray="3 3" />
-            <text x={PAD.left - 8} y={sy(v) + 4} textAnchor="end" fontSize="10" fill="#6b7280">
+            <line x1={PAD.left} x2={PAD.left + innerW} y1={sy(v)} y2={sy(v)} stroke="#374151" strokeDasharray="3 3" />
+            <text x={PAD.left - 8} y={sy(v) + 4} textAnchor="end" fontSize="10" fill="#9ca3af">
               ฿{fmtY(v)}
             </text>
           </g>
         ))}
 
         <path d={areaPath} fill="url(#areaFill)" />
-        <path d={costPath} fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="5 4" />
+        <path d={costPath} fill="none" stroke="#6b7280" strokeWidth="1.5" strokeDasharray="5 4" />
         <path d={valuePath} fill="none" stroke="#3b82f6" strokeWidth="2" />
 
         {markers?.map((m, i) => (
-          <circle key={`m-${i}`} cx={sx(m.x)} cy={sy(m.y)} r="4.5" fill={m.color} stroke="white" strokeWidth="2" />
+          <circle key={`m-${i}`} cx={sx(m.x)} cy={sy(m.y)} r="4.5" fill={m.color} stroke="#1f2937" strokeWidth="2" />
         ))}
 
         {hover && (
@@ -135,17 +135,17 @@ export function ValueChart({ rows, markers }: { rows: ChartRow[]; markers?: Char
             <line
               x1={sx(hover.x)} x2={sx(hover.x)}
               y1={PAD.top} y2={PAD.top + innerH}
-              stroke="#9ca3af" strokeDasharray="3 3"
+              stroke="#6b7280" strokeDasharray="3 3"
             />
-            <circle cx={sx(hover.x)} cy={sy(hover.cumulativeCost)} r="4" fill="white" stroke="#9ca3af" strokeWidth="2" />
-            <circle cx={sx(hover.x)} cy={sy(hover.totalValue)} r="5" fill="white" stroke="#3b82f6" strokeWidth="2.5" />
+            <circle cx={sx(hover.x)} cy={sy(hover.cumulativeCost)} r="4" fill="#1f2937" stroke="#6b7280" strokeWidth="2" />
+            <circle cx={sx(hover.x)} cy={sy(hover.totalValue)} r="5" fill="#1f2937" stroke="#3b82f6" strokeWidth="2.5" />
           </g>
         )}
 
         {xTickIdx.map((idx, i) => {
           const p = rows[idx];
           return (
-            <text key={`x-${i}`} x={sx(p.x)} y={H - 12} textAnchor="middle" fontSize="10" fill="#6b7280">
+            <text key={`x-${i}`} x={sx(p.x)} y={H - 12} textAnchor="middle" fontSize="10" fill="#9ca3af">
               {fmtDate(p.date)}
             </text>
           );
@@ -154,25 +154,25 @@ export function ValueChart({ rows, markers }: { rows: ChartRow[]; markers?: Char
 
       {hover && containerRef.current && (
         <div
-          className="absolute pointer-events-none bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs min-w-[180px] -translate-x-1/2 -translate-y-full"
+          className="absolute pointer-events-none bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-3 text-xs min-w-[180px] -translate-x-1/2 -translate-y-full"
           style={{
             left: `${tooltipLeft}px`,
             top: `${Math.max(0, tooltipTop - 12)}px`,
           }}
         >
-          <p className="font-semibold text-gray-900 mb-2">{fmtDate(hover.date)}</p>
+          <p className="font-semibold text-gray-100 mb-2">{fmtDate(hover.date)}</p>
           <div className="space-y-1">
             <div className="flex justify-between gap-4">
-              <span className="text-gray-500">มูลค่าตลาด</span>
-              <span className="font-medium text-blue-600">฿{fmt(hover.totalValue)}</span>
+              <span className="text-gray-400">มูลค่าตลาด</span>
+              <span className="font-medium text-blue-400">฿{fmt(hover.totalValue)}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-gray-500">ต้นทุนสะสม</span>
-              <span className="font-medium text-gray-700">฿{fmt(hover.cumulativeCost)}</span>
+              <span className="text-gray-400">ต้นทุนสะสม</span>
+              <span className="font-medium text-gray-300">฿{fmt(hover.cumulativeCost)}</span>
             </div>
-            <div className="flex justify-between gap-4 pt-1 border-t border-gray-100">
-              <span className="text-gray-500">กำไร / ขาดทุน</span>
-              <span className={`font-semibold ${hoverPL >= 0 ? "text-green-600" : "text-red-500"}`}>
+            <div className="flex justify-between gap-4 pt-1 border-t border-gray-700">
+              <span className="text-gray-400">กำไร / ขาดทุน</span>
+              <span className={`font-semibold ${hoverPL >= 0 ? "text-green-400" : "text-red-400"}`}>
                 {hoverPL >= 0 ? "+" : ""}฿{fmt(hoverPL)}
                 <span className="ml-1 text-[10px]">({hoverPL >= 0 ? "+" : ""}{hoverPLPct.toFixed(2)}%)</span>
               </span>

@@ -145,13 +145,13 @@ export default function UserDetailPage() {
   const plPct = totalCost > 0 ? (pl / totalCost) * 100 : 0;
 
   if (loading) {
-    return <p className="text-sm text-gray-400 text-center py-12">กำลังโหลด...</p>;
+    return <p className="text-sm text-gray-500 text-center py-12">กำลังโหลด...</p>;
   }
   if (error || !user) {
     return (
       <div>
-        <Link href="/admin/users" className="text-sm text-gray-600 hover:text-gray-900">← Users</Link>
-        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-3">
+        <Link href="/admin/users" className="text-sm text-gray-400 hover:text-gray-100">← Users</Link>
+        <p className="text-sm text-red-400 bg-red-950 border border-red-900 rounded-lg px-3 py-2 mt-3">
           {error || "User not found"}
         </p>
       </div>
@@ -160,74 +160,74 @@ export default function UserDetailPage() {
 
   return (
     <div>
-      <Link href="/admin/users" className="text-sm text-gray-600 hover:text-gray-900">← กลับไป Users</Link>
+      <Link href="/admin/users" className="text-sm text-gray-400 hover:text-gray-100">← กลับไป Users</Link>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mt-3 mb-5">
+      <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mt-3 mb-5">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">{user.email}</h1>
-            <p className="text-xs text-gray-500 mt-1">
+            <h1 className="text-xl font-semibold text-gray-100">{user.email}</h1>
+            <p className="text-xs text-gray-400 mt-1">
               {user.user_metadata?.full_name && <>ชื่อ: {user.user_metadata.full_name} · </>}
               สมัคร: {fmtDateTime(user.created_at)} · Login ล่าสุด: {fmtDateTime(user.last_sign_in_at)}
             </p>
-            <p className="text-[11px] text-gray-400 mt-1 font-mono">{user.id}</p>
+            <p className="text-[11px] text-gray-500 mt-1 font-mono">{user.id}</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         {[
-          { label: "สินทรัพย์", value: `${assets.length}`, color: "text-gray-900" },
-          { label: "ต้นทุนรวม", value: `฿${fmt(totalCost)}`, color: "text-gray-900" },
-          { label: "มูลค่าปัจจุบัน", value: `฿${fmt(totalValue)}`, color: "text-gray-900" },
+          { label: "สินทรัพย์", value: `${assets.length}`, color: "text-gray-50" },
+          { label: "ต้นทุนรวม", value: `฿${fmt(totalCost)}`, color: "text-gray-50" },
+          { label: "มูลค่าปัจจุบัน", value: `฿${fmt(totalValue)}`, color: "text-gray-50" },
           { label: "P/L", value: `${pl >= 0 ? "+" : ""}฿${fmt(pl)} (${plPct >= 0 ? "+" : ""}${plPct.toFixed(2)}%)`,
-            color: pl >= 0 ? "text-green-600" : "text-red-500" },
+            color: pl >= 0 ? "text-green-400" : "text-red-400" },
         ].map((m) => (
-          <div key={m.label} className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-gray-500 mb-1">{m.label}</p>
+          <div key={m.label} className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+            <p className="text-xs text-gray-400 mb-1">{m.label}</p>
             <p className={`text-base font-semibold ${m.color}`}>{m.value}</p>
           </div>
         ))}
       </div>
 
       {(series.length >= 2 || pieSlices.length > 0) && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+        <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-5">
           <div className="flex items-center justify-between mb-4 gap-3">
-            <h2 className="text-sm font-medium text-gray-700">
+            <h2 className="text-sm font-medium text-gray-300">
               {chartView === "timeline" ? "ภาพรวมพอร์ตตามเวลา" : "อัตราส่วนสินทรัพย์"}
             </h2>
-            <div className="inline-flex bg-gray-100 rounded-lg p-0.5">
+            <div className="inline-flex bg-gray-800 rounded-lg p-0.5">
               <button onClick={() => setChartView("timeline")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md ${chartView === "timeline" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}>
+                className={`px-3 py-1.5 text-xs font-medium rounded-md ${chartView === "timeline" ? "bg-gray-600 text-gray-50 shadow-sm" : "text-gray-400"}`}>
                 ตามเวลา
               </button>
               <button onClick={() => setChartView("allocation")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md ${chartView === "allocation" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}>
+                className={`px-3 py-1.5 text-xs font-medium rounded-md ${chartView === "allocation" ? "bg-gray-600 text-gray-50 shadow-sm" : "text-gray-400"}`}>
                 อัตราส่วน
               </button>
             </div>
           </div>
           {chartView === "timeline" ? (
-            series.length >= 2 ? <ValueChart rows={series} /> : <p className="text-center py-8 text-sm text-gray-400">ข้อมูลไม่พอ</p>
+            series.length >= 2 ? <ValueChart rows={series} /> : <p className="text-center py-8 text-sm text-gray-500">ข้อมูลไม่พอ</p>
           ) : (
             <PieChart slices={pieSlices} />
           )}
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-medium text-gray-700">Transactions ทั้งหมด</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{txs.length} รายการ · {portfolios.length} portfolio</p>
+      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-800">
+          <h2 className="text-sm font-medium text-gray-300">Transactions ทั้งหมด</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{txs.length} รายการ · {portfolios.length} portfolio</p>
         </div>
         {txs.length === 0 ? (
-          <div className="text-center py-12 text-sm text-gray-400">user นี้ยังไม่มี transaction</div>
+          <div className="text-center py-12 text-sm text-gray-500">user นี้ยังไม่มี transaction</div>
         ) : (
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-xs text-gray-500">
+                  <tr className="bg-gray-800 text-xs text-gray-400">
                     <th className="text-left px-5 py-3 font-medium">วันที่</th>
                     <th className="text-left px-5 py-3 font-medium">Symbol</th>
                     <th className="text-left px-5 py-3 font-medium">รายการ</th>
@@ -236,29 +236,29 @@ export default function UserDetailPage() {
                     <th className="px-3 py-3 w-12"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-800">
                   {pagedTxs.map((t) => {
                     const isSell = t.tx_type === "sell";
                     const isSnap = Number(t.amount) === 0;
                     return (
-                      <tr key={t.id} className="hover:bg-gray-50">
-                        <td className="px-5 py-3 text-gray-700">{fmtDate(t.date)}</td>
-                        <td className="px-5 py-3 font-medium text-gray-900">{t.symbol}</td>
+                      <tr key={t.id} className="hover:bg-gray-800">
+                        <td className="px-5 py-3 text-gray-300">{fmtDate(t.date)}</td>
+                        <td className="px-5 py-3 font-medium text-gray-100">{t.symbol}</td>
                         <td className="px-5 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            isSnap ? "bg-gray-100 text-gray-600" : isSell ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"
+                            isSnap ? "bg-gray-800 text-gray-300" : isSell ? "bg-red-900/50 text-red-300" : "bg-green-900/50 text-green-300"
                           }`}>
                             {isSnap ? "Snapshot" : isSell ? "ขาย" : "ซื้อ"}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right text-gray-600">
+                        <td className="px-5 py-3 text-right text-gray-400">
                           {Number(t.amount) === 0 ? "—" : `${isSell ? "-" : "+"}฿${fmt(Number(t.amount))}`}
                         </td>
-                        <td className="px-5 py-3 text-right font-medium text-gray-900">฿{fmt(Number(t.total_value))}</td>
+                        <td className="px-5 py-3 text-right font-medium text-gray-100">฿{fmt(Number(t.total_value))}</td>
                         <td className="px-3 py-3 text-right">
                           <button
                             onClick={() => setConfirmDelete(t)}
-                            className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-red-600 hover:bg-red-50"
+                            className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-red-400 hover:bg-red-900/20"
                             aria-label="ลบ"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -289,16 +289,16 @@ export default function UserDetailPage() {
           className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
           onClick={() => !deleting && setConfirmDelete(null)}
         >
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-gray-900 mb-2">ลบ transaction นี้?</h3>
-            <div className="bg-gray-50 rounded-lg px-3 py-2.5 text-xs space-y-1 mb-4">
-              <div className="flex justify-between"><span className="text-gray-500">Symbol</span><span>{confirmDelete.symbol}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">วันที่</span><span>{fmtDate(confirmDelete.date)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">จำนวน</span><span>฿{fmt(Number(confirmDelete.amount))}</span></div>
+          <div className="bg-gray-900 rounded-2xl shadow-xl border border-gray-700 max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-gray-100 mb-2">ลบ transaction นี้?</h3>
+            <div className="bg-gray-800 rounded-lg px-3 py-2.5 text-xs space-y-1 mb-4">
+              <div className="flex justify-between"><span className="text-gray-400">Symbol</span><span className="text-gray-200">{confirmDelete.symbol}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">วันที่</span><span className="text-gray-200">{fmtDate(confirmDelete.date)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">จำนวน</span><span className="text-gray-200">฿{fmt(Number(confirmDelete.amount))}</span></div>
             </div>
             <div className="flex gap-2">
               <button onClick={() => setConfirmDelete(null)} disabled={deleting}
-                className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                className="flex-1 px-4 py-2.5 text-sm text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800 disabled:opacity-50">
                 ยกเลิก
               </button>
               <button onClick={handleDeleteTx} disabled={deleting}
