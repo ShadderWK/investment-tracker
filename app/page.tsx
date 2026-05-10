@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { ValueChart, type ChartRow } from "./_components/ValueChart";
+import { Pagination } from "./_components/Pagination";
 
 type Transaction = {
   id: string;
@@ -68,13 +70,50 @@ function computeAssets(transactions: Transaction[]): Asset[] {
   }));
 }
 
+function computePortfolioSeries(transactions: Transaction[]): ChartRow[] {
+  if (transactions.length === 0) return [];
+
+  const bySymbol: Record<string, Transaction[]> = {};
+  transactions.forEach((t) => {
+    if (!bySymbol[t.symbol]) bySymbol[t.symbol] = [];
+    bySymbol[t.symbol].push(t);
+  });
+  Object.values(bySymbol).forEach((list) => list.sort((a, b) => a.date.localeCompare(b.date)));
+
+  const sortedTx = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+  const uniqueDates = Array.from(new Set(sortedTx.map((t) => t.date))).sort();
+
+  let cumCost = 0;
+  let txIdx = 0;
+  const latestValue: Record<string, number> = {};
+
+  return uniqueDates.map((date) => {
+    while (txIdx < sortedTx.length && sortedTx[txIdx].date <= date) {
+      const t = sortedTx[txIdx];
+      const delta = t.tx_type === "sell" ? -Number(t.amount) : Number(t.amount);
+      cumCost += delta;
+      latestValue[t.symbol] = Number(t.total_value);
+      txIdx++;
+    }
+    const totalValue = Object.values(latestValue).reduce((s, v) => s + v, 0);
+    return {
+      x: new Date(date).getTime(),
+      date,
+      cumulativeCost: cumCost,
+      totalValue,
+    };
+  });
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const SESSION_DURATION = 60 * 60 * 1000;
 
   useEffect(() => {
@@ -97,11 +136,11 @@ export default function DashboardPage() {
     const user = session.user;
     setUserEmail(user.email || "");
     setUserName(user.user_metadata?.full_name || user.email?.split("@")[0] || "User");
-    await loadAssets(user.id);
+    await loadTransactions(user.id);
     setLoading(false);
   }
 
-  async function loadAssets(userId: string) {
+  async function loadTransactions(userId: string) {
     const { data: portfolios } = await supabase
       .from("portfolios").select("id").eq("user_id", userId);
 
@@ -111,19 +150,19 @@ export default function DashboardPage() {
         .insert({ user_id: userId, name: "My Portfolio" })
         .select().single();
       if (newPortfolio) localStorage.setItem("portfolio_id", newPortfolio.id);
-      setAssets([]);
+      setTransactions([]);
       return;
     }
 
     const portfolioId = portfolios[0].id;
     localStorage.setItem("portfolio_id", portfolioId);
 
-    const { data: transactions } = await supabase
+    const { data } = await supabase
       .from("transactions").select("*")
       .eq("portfolio_id", portfolioId)
       .order("date", { ascending: true });
 
-    if (transactions) setAssets(computeAssets(transactions as Transaction[]));
+    if (data) setTransactions(data as Transaction[]);
   }
 
   async function handleLogout() {
@@ -133,6 +172,17 @@ export default function DashboardPage() {
     localStorage.removeItem("portfolio_id");
     router.replace("/login");
   }
+
+  const assets = useMemo(() => computeAssets(transactions), [transactions]);
+  const series = useMemo(() => computePortfolioSeries(transactions), [transactions]);
+  const sortedAssets = useMemo(
+    () => [...assets].sort((a, b) => b.currentValue - a.currentValue),
+    [assets]
+  );
+  const pagedAssets = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sortedAssets.slice(start, start + pageSize);
+  }, [sortedAssets, page, pageSize]);
 
   if (loading) {
     return (
@@ -188,6 +238,18 @@ export default function DashboardPage() {
           ))}
         </div>
 
+        {series.length >= 2 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-medium text-gray-700">ภาพรวมพอร์ตตามเวลา</h2>
+                <p className="text-xs text-gray-400 mt-0.5">รวมทุกสินทรัพย์ · เส้นน้ำเงิน = มูลค่าตลาด · เส้นเทาประ = ต้นทุนสะสม</p>
+              </div>
+            </div>
+            <ValueChart rows={series} />
+          </div>
+        )}
+
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
@@ -218,53 +280,62 @@ export default function DashboardPage() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 text-xs text-gray-500">
-                    <th className="text-left px-5 py-3 font-medium">ชื่อสินทรัพย์</th>
-                    <th className="text-right px-5 py-3 font-medium">รายการ</th>
-                    <th className="text-right px-5 py-3 font-medium">ต้นทุนรวม</th>
-                    <th className="text-right px-5 py-3 font-medium">มูลค่าปัจจุบัน</th>
-                    <th className="text-right px-5 py-3 font-medium">กำไร/ขาดทุน</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {assets.map((a) => (
-                    <tr
-                      key={a.symbol}
-                      onClick={() => router.push(`/asset/${encodeURIComponent(a.symbol)}`)}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
-                    >
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
-                            {a.symbol.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{a.symbol}</p>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[a.assetType] || "bg-gray-100 text-gray-600"}`}>
-                              {TYPE_LABEL[a.assetType] || a.assetType}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 text-right text-gray-600">{a.txCount}</td>
-                      <td className="px-5 py-4 text-right text-gray-600">฿{fmt(a.totalCost)}</td>
-                      <td className="px-5 py-4 text-right font-medium text-gray-900">฿{fmt(a.currentValue)}</td>
-                      <td className="px-5 py-4 text-right">
-                        <p className={`font-medium ${a.pl >= 0 ? "text-green-600" : "text-red-500"}`}>
-                          {a.pl >= 0 ? "+" : ""}฿{fmt(a.pl)}
-                        </p>
-                        <p className={`text-xs mt-0.5 ${a.plPct >= 0 ? "text-green-500" : "text-red-400"}`}>
-                          {a.plPct >= 0 ? "+" : ""}{a.plPct.toFixed(2)}%
-                        </p>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-xs text-gray-500">
+                      <th className="text-left px-5 py-3 font-medium">ชื่อสินทรัพย์</th>
+                      <th className="text-right px-5 py-3 font-medium">รายการ</th>
+                      <th className="text-right px-5 py-3 font-medium">ต้นทุนรวม</th>
+                      <th className="text-right px-5 py-3 font-medium">มูลค่าปัจจุบัน</th>
+                      <th className="text-right px-5 py-3 font-medium">กำไร/ขาดทุน</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {pagedAssets.map((a) => (
+                      <tr
+                        key={a.symbol}
+                        onClick={() => router.push(`/asset/${encodeURIComponent(a.symbol)}`)}
+                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      >
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
+                              {a.symbol.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{a.symbol}</p>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[a.assetType] || "bg-gray-100 text-gray-600"}`}>
+                                {TYPE_LABEL[a.assetType] || a.assetType}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-right text-gray-600">{a.txCount}</td>
+                        <td className="px-5 py-4 text-right text-gray-600">฿{fmt(a.totalCost)}</td>
+                        <td className="px-5 py-4 text-right font-medium text-gray-900">฿{fmt(a.currentValue)}</td>
+                        <td className="px-5 py-4 text-right">
+                          <p className={`font-medium ${a.pl >= 0 ? "text-green-600" : "text-red-500"}`}>
+                            {a.pl >= 0 ? "+" : ""}฿{fmt(a.pl)}
+                          </p>
+                          <p className={`text-xs mt-0.5 ${a.plPct >= 0 ? "text-green-500" : "text-red-400"}`}>
+                            {a.plPct >= 0 ? "+" : ""}{a.plPct.toFixed(2)}%
+                          </p>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                total={sortedAssets.length}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+              />
+            </>
           )}
         </div>
 
