@@ -51,9 +51,49 @@ const KFIRMF: Row[] = [
   { date: "2025-09-01", amount: 1000.00, total_value: 8315.91 },
 ];
 
+const GOLD: Row[] = [
+  { date: "2024-07-01", amount: 367.20, total_value: 367.20 },
+  { date: "2024-08-01", amount: 354.60, total_value: 705.55 },
+  { date: "2024-09-01", amount: 343.00, total_value: 1043.06 },
+  { date: "2024-10-01", amount: 326.40, total_value: 1380.78 },
+  { date: "2024-11-01", amount: 339.50, total_value: 1829.44 },
+  { date: "2024-12-01", amount: 345.20, total_value: 2129.40 },
+  { date: "2025-01-01", amount: 343.20, total_value: 2459.47 },
+  { date: "2025-02-01", amount: 340.90, total_value: 2927.44 },
+  { date: "2025-03-01", amount: 342.20, total_value: 3356.36 },
+  { date: "2025-04-01", amount: 341.10, total_value: 4001.58 },
+  { date: "2025-05-01", amount: 336.10, total_value: 4386.06 },
+  { date: "2025-06-01", amount: 326.90, total_value: 4768.19 },
+  { date: "2025-07-01", amount: 324.70, total_value: 5038.78 },
+  { date: "2025-08-01", amount: 329.30, total_value: 5362.09 },
+  { date: "2025-09-01", amount: 811.45, total_value: 6378.24 },
+  { date: "2025-10-01", amount: 2015.62, total_value: 9123.96 },
+  { date: "2025-11-01", amount: 1008.43, total_value: 10469.64 },
+  { date: "2025-12-01", amount: 321.50, total_value: 11231.90 },
+  { date: "2026-01-01", amount: 314.90, total_value: 11726.83 },
+  { date: "2026-02-01", amount: 316.50, total_value: 13114.41 },
+  { date: "2026-03-01", amount: 314.90, total_value: 15021.06 },
+  { date: "2026-04-01", amount: 326.50, total_value: 13955.37 },
+  { date: "2026-05-01", amount: 326.00, total_value: 14058.20 },
+];
+
+const BTC: Row[] = [
+  { date: "2025-09-01", amount: 250.00, total_value: 250.00 },
+  { date: "2025-10-01", amount: 2000.00, total_value: 2312.65 },
+  { date: "2025-11-01", amount: 1050.00, total_value: 3175.87 },
+  { date: "2025-12-01", amount: 300.00, total_value: 2790.16 },
+  { date: "2026-01-01", amount: 300.00, total_value: 3103.96 },
+  { date: "2026-02-01", amount: 300.00, total_value: 3086.69 },
+  { date: "2026-03-01", amount: 300.00, total_value: 2894.70 },
+  { date: "2026-04-01", amount: 300.00, total_value: 3367.23 },
+  { date: "2026-05-01", amount: 300.00, total_value: 4080.85 },
+];
+
 const DATASETS: { symbol: string; asset_type: string; rows: Row[] }[] = [
   { symbol: "KUS500XA", asset_type: "fund", rows: KUS500XA },
   { symbol: "KFIRMF", asset_type: "fund", rows: KFIRMF },
+  { symbol: "GOLD", asset_type: "gold", rows: GOLD },
+  { symbol: "BTC", asset_type: "crypto", rows: BTC },
 ];
 
 function fmt(n: number) {
