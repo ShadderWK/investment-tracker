@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { ValueChart, type ChartRow } from "./_components/ValueChart";
+import { PieChart, type PieSlice } from "./_components/PieChart";
 import { Pagination } from "./_components/Pagination";
 
 type Transaction = {
@@ -114,6 +115,7 @@ export default function DashboardPage() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [chartView, setChartView] = useState<"timeline" | "allocation">("timeline");
   const SESSION_DURATION = 60 * 60 * 1000;
 
   useEffect(() => {
@@ -183,6 +185,16 @@ export default function DashboardPage() {
     const start = (page - 1) * pageSize;
     return sortedAssets.slice(start, start + pageSize);
   }, [sortedAssets, page, pageSize]);
+  const pieSlices: PieSlice[] = useMemo(
+    () => sortedAssets
+      .filter((a) => a.currentValue > 0)
+      .map((a) => ({
+        label: a.symbol,
+        sublabel: TYPE_LABEL[a.assetType] || a.assetType,
+        value: a.currentValue,
+      })),
+    [sortedAssets]
+  );
 
   if (loading) {
     return (
@@ -238,15 +250,53 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {series.length >= 2 && (
+        {(series.length >= 2 || pieSlices.length > 0) && (
           <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-sm font-medium text-gray-700">ภาพรวมพอร์ตตามเวลา</h2>
-                <p className="text-xs text-gray-400 mt-0.5">รวมทุกสินทรัพย์ · เส้นน้ำเงิน = มูลค่าตลาด · เส้นเทาประ = ต้นทุนสะสม</p>
+            <div className="flex items-center justify-between mb-4 gap-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-gray-700">
+                  {chartView === "timeline" ? "ภาพรวมพอร์ตตามเวลา" : "อัตราส่วนสินทรัพย์"}
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {chartView === "timeline"
+                    ? "รวมทุกสินทรัพย์ · ชี้เพื่อดูค่า ณ จุดนั้น"
+                    : "ตามมูลค่าปัจจุบัน · ชี้สไลซ์เพื่อดูรายละเอียด"}
+                </p>
+              </div>
+              <div className="inline-flex bg-gray-100 rounded-lg p-0.5 shrink-0">
+                <button
+                  onClick={() => setChartView("timeline")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+                    chartView === "timeline"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  ตามเวลา
+                </button>
+                <button
+                  onClick={() => setChartView("allocation")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition ${
+                    chartView === "allocation"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  อัตราส่วน
+                </button>
               </div>
             </div>
-            <ValueChart rows={series} />
+            {chartView === "timeline" ? (
+              series.length >= 2 ? (
+                <ValueChart rows={series} />
+              ) : (
+                <div className="text-center py-12 text-sm text-gray-400">
+                  ต้องมีข้อมูลอย่างน้อย 2 จุดเพื่อแสดงกราฟตามเวลา
+                </div>
+              )
+            ) : (
+              <PieChart slices={pieSlices} />
+            )}
           </div>
         )}
 
