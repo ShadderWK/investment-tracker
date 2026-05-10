@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/log";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -45,6 +46,7 @@ export default function LoginPage() {
       if (error) {
         setError(error.message);
       } else {
+        await logActivity("signup", { email });
         setSuccess("สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบอีเมลเพื่อยืนยันตัวตนครับ");
       }
     } else {
@@ -57,6 +59,7 @@ export default function LoginPage() {
       if (error) {
         setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
       } else {
+        await logActivity("login");
         localStorage.setItem("login_time", Date.now().toString());
         router.push("/");
         router.refresh();
