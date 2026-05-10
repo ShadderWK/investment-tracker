@@ -389,6 +389,10 @@ export default function DashboardPage() {
           )}
         </div>
 
+        <p className="text-center text-[11px] text-gray-300 mt-8">
+          สร้างโดย <span className="text-gray-400 font-medium">ShadderWK</span>
+        </p>
+
       </div>
     </main>
   );
