@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "../../_lib";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticateAdmin(req);
   if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: auth.status });
   const { id } = await params;
+  const supabaseAdmin = getSupabaseAdmin();
 
   const { data: tx } = await supabaseAdmin
     .from("transactions").select("id, portfolio_id, symbol, amount").eq("id", id).single();

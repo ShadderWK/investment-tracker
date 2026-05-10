@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "../_lib";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(req: Request) {
   const auth = await authenticateAdmin(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
   }
+  const supabaseAdmin = getSupabaseAdmin();
 
   const { data: usersList, error: usersErr } = await supabaseAdmin.auth.admin.listUsers({
     page: 1,
