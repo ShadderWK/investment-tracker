@@ -57,6 +57,7 @@ export default function LoginPage() {
       if (error) {
         setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
       } else {
+        localStorage.setItem("login_time", Date.now().toString());
         router.push("/");
         router.refresh();
       }

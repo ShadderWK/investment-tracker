@@ -1,17 +1,34 @@
-// src/app/page.tsx
+"use client";
 
-const mockAssets = [
-  { symbol: "AAPL", name: "Apple Inc.", type: "stock", qty: 10, avgCost: 5500, currentPrice: 6200 },
-  { symbol: "BTC", name: "Bitcoin", type: "crypto", qty: 0.5, avgCost: 1500000, currentPrice: 1800000 },
-  { symbol: "GLD", name: "ทองคำ", type: "gold", qty: 5, avgCost: 32000, currentPrice: 34500 },
-  { symbol: "SCB", name: "ธนาคารไทยพาณิชย์", type: "stock", qty: 100, avgCost: 110, currentPrice: 98 },
-];
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+
+type Transaction = {
+  id: string;
+  symbol: string;
+  asset_type: string;
+  tx_type: string;
+  price: number;
+  qty: number;
+  current_price: number;
+  date: string;
+};
+
+type Asset = {
+  symbol: string;
+  assetType: string;
+  qty: number;
+  totalCost: number;
+  currentPrice: number;
+  marketValue: number;
+  pl: number;
+  plPct: number;
+  avgCost: number;
+};
 
 const TYPE_LABEL: Record<string, string> = {
-  stock: "หุ้น",
-  crypto: "คริปโต",
-  gold: "ทองคำ",
-  etf: "ETF",
+  stock: "หุ้น", crypto: "คริปโต", gold: "ทองคำ", etf: "ETF",
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -25,103 +42,245 @@ function fmt(n: number) {
   return n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function computeAssets(transactions: Transaction[]): Asset[] {
+  const map: Record<string, Asset> = {};
+  transactions.forEach((tx) => {
+    if (!map[tx.symbol]) {
+      map[tx.symbol] = {
+        symbol: tx.symbol,
+        assetType: tx.asset_type,
+        qty: 0,
+        totalCost: 0,
+        currentPrice: tx.current_price,
+        marketValue: 0,
+        pl: 0,
+        plPct: 0,
+        avgCost: 0,
+      };
+    }
+    const a = map[tx.symbol];
+    a.currentPrice = tx.current_price;
+    if (tx.tx_type === "buy") {
+      a.qty += tx.qty;
+      a.totalCost += tx.price * tx.qty;
+    } else {
+      a.qty -= tx.qty;
+      a.totalCost -= tx.price * tx.qty;
+    }
+  });
+  return Object.values(map)
+    .filter((a) => a.qty > 0)
+    .map((a) => ({
+      ...a,
+      avgCost: a.qty > 0 ? a.totalCost / a.qty : 0,
+      marketValue: a.qty * a.currentPrice,
+      pl: a.qty * a.currentPrice - a.totalCost,
+      plPct: a.totalCost > 0 ? ((a.qty * a.currentPrice - a.totalCost) / a.totalCost) * 100 : 0,
+    }));
+}
+
 export default function DashboardPage() {
-  const assets = mockAssets.map((a) => ({
-    ...a,
-    marketValue: a.qty * a.currentPrice,
-    totalCost: a.qty * a.avgCost,
-    pl: a.qty * a.currentPrice - a.qty * a.avgCost,
-    plPct: ((a.currentPrice - a.avgCost) / a.avgCost) * 100,
-  }));
+  const router = useRouter();
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const SESSION_DURATION = 60 * 60 * 1000;
+
+  useEffect(() => {
+    checkSessionAndLoad();
+  }, []);
+
+  async function checkSessionAndLoad() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { router.replace("/login"); return; }
+
+    const loginTime = localStorage.getItem("login_time");
+    if (loginTime && Date.now() - parseInt(loginTime) > SESSION_DURATION) {
+      await supabase.auth.signOut();
+      localStorage.removeItem("login_time");
+      router.replace("/login");
+      return;
+    }
+    if (!loginTime) localStorage.setItem("login_time", Date.now().toString());
+
+    const user = session.user;
+    setUserEmail(user.email || "");
+    setUserName(user.user_metadata?.full_name || user.email?.split("@")[0] || "User");
+    await loadAssets(user.id);
+    setLoading(false);
+  }
+
+  async function loadAssets(userId: string) {
+    let { data: portfolios } = await supabase
+      .from("portfolios").select("id").eq("user_id", userId);
+
+    if (!portfolios || portfolios.length === 0) {
+      const { data: newPortfolio } = await supabase
+        .from("portfolios")
+        .insert({ user_id: userId, name: "My Portfolio" })
+        .select().single();
+      if (newPortfolio) localStorage.setItem("portfolio_id", newPortfolio.id);
+      setAssets([]);
+      return;
+    }
+
+    const portfolioId = portfolios[0].id;
+    localStorage.setItem("portfolio_id", portfolioId);
+
+    const { data: transactions } = await supabase
+      .from("transactions").select("*")
+      .eq("portfolio_id", portfolioId)
+      .order("date", { ascending: true });
+
+    if (transactions) setAssets(computeAssets(transactions));
+  }
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await supabase.auth.signOut();
+    localStorage.removeItem("login_time");
+    localStorage.removeItem("portfolio_id");
+    router.replace("/login");
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-400 text-sm">กำลังโหลดข้อมูล...</p>
+      </main>
+    );
+  }
 
   const totalValue = assets.reduce((s, a) => s + a.marketValue, 0);
   const totalCost = assets.reduce((s, a) => s + a.totalCost, 0);
   const totalPL = totalValue - totalCost;
-  const totalPLPct = (totalPL / totalCost) * 100;
+  const totalPLPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
 
   return (
     <main className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
 
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900">Portfolio Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">ภาพรวมการลงทุนของคุณ</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Portfolio Dashboard</h1>
+            <p className="text-sm text-gray-500 mt-1">ภาพรวมการลงทุนของคุณ</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-sm font-medium text-gray-900">{userName}</p>
+              <p className="text-xs text-gray-400">{userEmail}</p>
+            </div>
+            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
+              {userName.slice(0, 1).toUpperCase()}
+            </div>
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="px-3 py-2 text-sm text-gray-600 hover:text-red-500 border border-gray-200 hover:border-red-200 rounded-lg transition disabled:opacity-50"
+            >
+              {loggingOut ? "กำลังออก..." : "ออกจากระบบ"}
+            </button>
+          </div>
         </div>
 
         {/* Metric Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-gray-500 mb-1">มูลค่ารวม</p>
-            <p className="text-xl font-semibold text-gray-900">฿{fmt(totalValue)}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-gray-500 mb-1">ต้นทุนรวม</p>
-            <p className="text-xl font-semibold text-gray-900">฿{fmt(totalCost)}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-gray-500 mb-1">กำไร / ขาดทุน</p>
-            <p className={`text-xl font-semibold ${totalPL >= 0 ? "text-green-600" : "text-red-500"}`}>
-              {totalPL >= 0 ? "+" : ""}฿{fmt(totalPL)}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-xs text-gray-500 mb-1">ผลตอบแทน</p>
-            <p className={`text-xl font-semibold ${totalPLPct >= 0 ? "text-green-600" : "text-red-500"}`}>
-              {totalPLPct >= 0 ? "+" : ""}{totalPLPct.toFixed(2)}%
-            </p>
-          </div>
+          {[
+            { label: "มูลค่ารวม", value: `฿${fmt(totalValue)}`, color: "text-gray-900" },
+            { label: "ต้นทุนรวม", value: `฿${fmt(totalCost)}`, color: "text-gray-900" },
+            { label: "กำไร / ขาดทุน", value: `${totalPL >= 0 ? "+" : ""}฿${fmt(totalPL)}`, color: totalPL >= 0 ? "text-green-600" : "text-red-500" },
+            { label: "ผลตอบแทน", value: `${totalPLPct >= 0 ? "+" : ""}${totalPLPct.toFixed(2)}%`, color: totalPLPct >= 0 ? "text-green-600" : "text-red-500" },
+          ].map((m) => (
+            <div key={m.label} className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs text-gray-500 mb-1">{m.label}</p>
+              <p className={`text-xl font-semibold ${m.color}`}>{m.value}</p>
+            </div>
+          ))}
         </div>
 
         {/* Asset Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-medium text-gray-700">สินทรัพย์ทั้งหมด</h2>
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-medium text-gray-700">สินทรัพย์ทั้งหมด</h2>
+              <p className="text-xs text-gray-400 mt-0.5">{assets.length} รายการ</p>
+            </div>
+            {/* ปุ่มเพิ่มการลงทุน */}
+            <button
+              onClick={() => router.push("/add")}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              เพิ่มการลงทุน
+            </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-xs text-gray-500">
-                  <th className="text-left px-5 py-3 font-medium">สินทรัพย์</th>
-                  <th className="text-right px-5 py-3 font-medium">จำนวน</th>
-                  <th className="text-right px-5 py-3 font-medium">ราคาปัจจุบัน</th>
-                  <th className="text-right px-5 py-3 font-medium">มูลค่า</th>
-                  <th className="text-right px-5 py-3 font-medium">กำไร/ขาดทุน</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {assets.map((a) => (
-                  <tr key={a.symbol} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
-                          {a.symbol.slice(0, 2)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{a.symbol}</p>
-                          <p className="text-xs text-gray-400">{a.name}</p>
-                        </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[a.type]}`}>
-                          {TYPE_LABEL[a.type]}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-right text-gray-600">{a.qty}</td>
-                    <td className="px-5 py-4 text-right text-gray-600">฿{fmt(a.currentPrice)}</td>
-                    <td className="px-5 py-4 text-right font-medium text-gray-900">฿{fmt(a.marketValue)}</td>
-                    <td className="px-5 py-4 text-right">
-                      <p className={`font-medium ${a.pl >= 0 ? "text-green-600" : "text-red-500"}`}>
-                        {a.pl >= 0 ? "+" : ""}฿{fmt(a.pl)}
-                      </p>
-                      <p className={`text-xs ${a.plPct >= 0 ? "text-green-500" : "text-red-400"}`}>
-                        {a.plPct >= 0 ? "+" : ""}{a.plPct.toFixed(2)}%
-                      </p>
-                    </td>
+
+          {assets.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <p className="text-4xl mb-3">📭</p>
+              <p className="text-sm font-medium text-gray-500">ยังไม่มีสินทรัพย์</p>
+              <p className="text-xs mt-1 mb-4">กดปุ่ม "เพิ่มการลงทุน" เพื่อเริ่มต้นบันทึกพอร์ต</p>
+              <button
+                onClick={() => router.push("/add")}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
+              >
+                + เพิ่มการลงทุนแรก
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-xs text-gray-500">
+                    <th className="text-left px-5 py-3 font-medium">ชื่อสินทรัพย์</th>
+                    <th className="text-right px-5 py-3 font-medium">จำนวน</th>
+                    <th className="text-right px-5 py-3 font-medium">ราคาต้นทุน/หน่วย</th>
+                    <th className="text-right px-5 py-3 font-medium">ราคาปัจจุบัน/หน่วย</th>
+                    <th className="text-right px-5 py-3 font-medium">มูลค่ารวม</th>
+                    <th className="text-right px-5 py-3 font-medium">กำไร/ขาดทุน</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {assets.map((a) => (
+                    <tr key={a.symbol} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
+                            {a.symbol.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{a.symbol}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[a.assetType] || "bg-gray-100 text-gray-600"}`}>
+                              {TYPE_LABEL[a.assetType] || a.assetType}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-right text-gray-600">
+                        {a.qty % 1 === 0 ? a.qty : a.qty.toFixed(4)}
+                      </td>
+                      <td className="px-5 py-4 text-right text-gray-600">฿{fmt(a.avgCost)}</td>
+                      <td className="px-5 py-4 text-right text-gray-600">฿{fmt(a.currentPrice)}</td>
+                      <td className="px-5 py-4 text-right font-medium text-gray-900">฿{fmt(a.marketValue)}</td>
+                      <td className="px-5 py-4 text-right">
+                        <p className={`font-medium ${a.pl >= 0 ? "text-green-600" : "text-red-500"}`}>
+                          {a.pl >= 0 ? "+" : ""}฿{fmt(a.pl)}
+                        </p>
+                        <p className={`text-xs mt-0.5 ${a.plPct >= 0 ? "text-green-500" : "text-red-400"}`}>
+                          {a.plPct >= 0 ? "+" : ""}{a.plPct.toFixed(2)}%
+                        </p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
       </div>
