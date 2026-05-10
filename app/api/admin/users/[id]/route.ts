@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "../../_lib";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticateAdmin(req);
   if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: auth.status });
   const { id } = await params;
+  const supabaseAdmin = getSupabaseAdmin();
 
   const { data: userResult, error: userErr } = await supabaseAdmin.auth.admin.getUserById(id);
   if (userErr || !userResult?.user) {
@@ -41,6 +42,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     return NextResponse.json({ error: "ลบบัญชีตัวเองไม่ได้" }, { status: 400 });
   }
 
+  const supabaseAdmin = getSupabaseAdmin();
   const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

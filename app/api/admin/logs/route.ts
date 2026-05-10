@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { authenticateAdmin } from "../_lib";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(req: Request) {
   const auth = await authenticateAdmin(req);
   if (!auth.ok) return NextResponse.json({ error: auth.message }, { status: auth.status });
+  const supabaseAdmin = getSupabaseAdmin();
 
   const url = new URL(req.url);
   const userId = url.searchParams.get("user_id");
