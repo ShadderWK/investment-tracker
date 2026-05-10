@@ -72,12 +72,12 @@ export default function LoginPage() {
 
         {/* Logo / Title */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="Logo"
+            className="w-24 h-24 rounded-full object-cover mx-auto mb-3 ring-4 ring-white shadow-md"
+          />
           <h1 className="text-xl font-semibold text-gray-900">Portfolio Tracker</h1>
           <p className="text-sm text-gray-500 mt-1">
             {isRegister ? "สร้างบัญชีใหม่" : "เข้าสู่ระบบเพื่อดูพอร์ตของคุณ"}
@@ -169,6 +169,10 @@ export default function LoginPage() {
 
         <p className="text-center text-xs text-gray-400 mt-6">
           ข้อมูลของคุณปลอดภัยและเข้ารหัสเสมอ
+        </p>
+
+        <p className="text-center text-[11px] text-gray-300 mt-2">
+          สร้างโดย <span className="text-gray-400 font-medium">ShadderWK</span>
         </p>
 
       </div>
