@@ -9,26 +9,23 @@ type Transaction = {
   symbol: string;
   asset_type: string;
   tx_type: string;
-  price: number;
-  qty: number;
-  current_price: number;
+  amount: number;
+  total_value: number;
   date: string;
 };
 
 type Asset = {
   symbol: string;
   assetType: string;
-  qty: number;
   totalCost: number;
-  currentPrice: number;
-  marketValue: number;
+  currentValue: number;
   pl: number;
   plPct: number;
-  avgCost: number;
+  txCount: number;
 };
 
 const TYPE_LABEL: Record<string, string> = {
-  stock: "หุ้น", crypto: "คริปโต", gold: "ทองคำ", etf: "ETF",
+  stock: "หุ้น", crypto: "คริปโต", gold: "ทองคำ", etf: "ETF", fund: "กองทุน",
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -36,6 +33,7 @@ const TYPE_COLOR: Record<string, string> = {
   crypto: "bg-purple-100 text-purple-700",
   gold: "bg-amber-100 text-amber-700",
   etf: "bg-green-100 text-green-700",
+  fund: "bg-indigo-100 text-indigo-700",
 };
 
 function fmt(n: number) {
@@ -43,40 +41,31 @@ function fmt(n: number) {
 }
 
 function computeAssets(transactions: Transaction[]): Asset[] {
-  const map: Record<string, Asset> = {};
+  const map: Record<string, Asset & { lastDate: string }> = {};
   transactions.forEach((tx) => {
-    if (!map[tx.symbol]) {
-      map[tx.symbol] = {
-        symbol: tx.symbol,
-        assetType: tx.asset_type,
-        qty: 0,
-        totalCost: 0,
-        currentPrice: tx.current_price,
-        marketValue: 0,
-        pl: 0,
-        plPct: 0,
-        avgCost: 0,
+    const sym = tx.symbol;
+    if (!map[sym]) {
+      map[sym] = {
+        symbol: sym, assetType: tx.asset_type,
+        totalCost: 0, currentValue: 0, pl: 0, plPct: 0, txCount: 0,
+        lastDate: "",
       };
     }
-    const a = map[tx.symbol];
-    a.currentPrice = tx.current_price;
-    if (tx.tx_type === "buy") {
-      a.qty += tx.qty;
-      a.totalCost += tx.price * tx.qty;
-    } else {
-      a.qty -= tx.qty;
-      a.totalCost -= tx.price * tx.qty;
+    const a = map[sym];
+    const delta = tx.tx_type === "sell" ? -Number(tx.amount) : Number(tx.amount);
+    a.totalCost += delta;
+    a.txCount += 1;
+    if (tx.date >= a.lastDate) {
+      a.currentValue = Number(tx.total_value);
+      a.lastDate = tx.date;
     }
   });
-  return Object.values(map)
-    .filter((a) => a.qty > 0)
-    .map((a) => ({
-      ...a,
-      avgCost: a.qty > 0 ? a.totalCost / a.qty : 0,
-      marketValue: a.qty * a.currentPrice,
-      pl: a.qty * a.currentPrice - a.totalCost,
-      plPct: a.totalCost > 0 ? ((a.qty * a.currentPrice - a.totalCost) / a.totalCost) * 100 : 0,
-    }));
+  return Object.values(map).map((a) => ({
+    symbol: a.symbol, assetType: a.assetType,
+    totalCost: a.totalCost, currentValue: a.currentValue, txCount: a.txCount,
+    pl: a.currentValue - a.totalCost,
+    plPct: a.totalCost > 0 ? ((a.currentValue - a.totalCost) / a.totalCost) * 100 : 0,
+  }));
 }
 
 export default function DashboardPage() {
@@ -113,7 +102,7 @@ export default function DashboardPage() {
   }
 
   async function loadAssets(userId: string) {
-    let { data: portfolios } = await supabase
+    const { data: portfolios } = await supabase
       .from("portfolios").select("id").eq("user_id", userId);
 
     if (!portfolios || portfolios.length === 0) {
@@ -134,7 +123,7 @@ export default function DashboardPage() {
       .eq("portfolio_id", portfolioId)
       .order("date", { ascending: true });
 
-    if (transactions) setAssets(computeAssets(transactions));
+    if (transactions) setAssets(computeAssets(transactions as Transaction[]));
   }
 
   async function handleLogout() {
@@ -153,7 +142,7 @@ export default function DashboardPage() {
     );
   }
 
-  const totalValue = assets.reduce((s, a) => s + a.marketValue, 0);
+  const totalValue = assets.reduce((s, a) => s + a.currentValue, 0);
   const totalCost = assets.reduce((s, a) => s + a.totalCost, 0);
   const totalPL = totalValue - totalCost;
   const totalPLPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
@@ -162,7 +151,6 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Portfolio Dashboard</h1>
@@ -186,7 +174,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Metric Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
             { label: "มูลค่ารวม", value: `฿${fmt(totalValue)}`, color: "text-gray-900" },
@@ -201,14 +188,12 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Asset Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-medium text-gray-700">สินทรัพย์ทั้งหมด</h2>
               <p className="text-xs text-gray-400 mt-0.5">{assets.length} รายการ</p>
             </div>
-            {/* ปุ่มเพิ่มการลงทุน */}
             <button
               onClick={() => router.push("/add")}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
@@ -224,7 +209,7 @@ export default function DashboardPage() {
             <div className="text-center py-16 text-gray-400">
               <p className="text-4xl mb-3">📭</p>
               <p className="text-sm font-medium text-gray-500">ยังไม่มีสินทรัพย์</p>
-              <p className="text-xs mt-1 mb-4">กดปุ่ม "เพิ่มการลงทุน" เพื่อเริ่มต้นบันทึกพอร์ต</p>
+              <p className="text-xs mt-1 mb-4">กดปุ่ม &quot;เพิ่มการลงทุน&quot; เพื่อเริ่มต้นบันทึกพอร์ต</p>
               <button
                 onClick={() => router.push("/add")}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
@@ -238,10 +223,9 @@ export default function DashboardPage() {
                 <thead>
                   <tr className="bg-gray-50 text-xs text-gray-500">
                     <th className="text-left px-5 py-3 font-medium">ชื่อสินทรัพย์</th>
-                    <th className="text-right px-5 py-3 font-medium">จำนวน</th>
-                    <th className="text-right px-5 py-3 font-medium">ราคาต้นทุน/หน่วย</th>
-                    <th className="text-right px-5 py-3 font-medium">ราคาปัจจุบัน/หน่วย</th>
-                    <th className="text-right px-5 py-3 font-medium">มูลค่ารวม</th>
+                    <th className="text-right px-5 py-3 font-medium">รายการ</th>
+                    <th className="text-right px-5 py-3 font-medium">ต้นทุนรวม</th>
+                    <th className="text-right px-5 py-3 font-medium">มูลค่าปัจจุบัน</th>
                     <th className="text-right px-5 py-3 font-medium">กำไร/ขาดทุน</th>
                   </tr>
                 </thead>
@@ -265,12 +249,9 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-right text-gray-600">
-                        {a.qty % 1 === 0 ? a.qty : a.qty.toFixed(4)}
-                      </td>
-                      <td className="px-5 py-4 text-right text-gray-600">฿{fmt(a.avgCost)}</td>
-                      <td className="px-5 py-4 text-right text-gray-600">฿{fmt(a.currentPrice)}</td>
-                      <td className="px-5 py-4 text-right font-medium text-gray-900">฿{fmt(a.marketValue)}</td>
+                      <td className="px-5 py-4 text-right text-gray-600">{a.txCount}</td>
+                      <td className="px-5 py-4 text-right text-gray-600">฿{fmt(a.totalCost)}</td>
+                      <td className="px-5 py-4 text-right font-medium text-gray-900">฿{fmt(a.currentValue)}</td>
                       <td className="px-5 py-4 text-right">
                         <p className={`font-medium ${a.pl >= 0 ? "text-green-600" : "text-red-500"}`}>
                           {a.pl >= 0 ? "+" : ""}฿{fmt(a.pl)}

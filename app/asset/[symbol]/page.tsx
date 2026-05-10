@@ -9,14 +9,13 @@ type Transaction = {
   symbol: string;
   asset_type: string;
   tx_type: string;
-  price: number;
-  qty: number;
-  current_price: number;
+  amount: number;
+  total_value: number;
   date: string;
 };
 
 const TYPE_LABEL: Record<string, string> = {
-  stock: "หุ้น", crypto: "คริปโต", gold: "ทองคำ", etf: "ETF",
+  stock: "หุ้น", crypto: "คริปโต", gold: "ทองคำ", etf: "ETF", fund: "กองทุน",
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -24,6 +23,7 @@ const TYPE_COLOR: Record<string, string> = {
   crypto: "bg-purple-100 text-purple-700",
   gold: "bg-amber-100 text-amber-700",
   etf: "bg-green-100 text-green-700",
+  fund: "bg-indigo-100 text-indigo-700",
 };
 
 function fmt(n: number) {
@@ -35,42 +35,51 @@ function fmtDate(s: string) {
   return d.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
 }
 
-type ChartPoint = { x: number; y: number; date: string; tx: Transaction };
+type ChartRow = {
+  x: number;
+  date: string;
+  cumulativeCost: number;
+  totalValue: number;
+  amount: number;
+  txType: string;
+};
 
-function PriceChart({ points }: { points: ChartPoint[] }) {
+function ValueChart({ rows }: { rows: ChartRow[] }) {
   const W = 720;
-  const H = 280;
-  const PAD = { top: 20, right: 20, bottom: 36, left: 56 };
+  const H = 300;
+  const PAD = { top: 20, right: 20, bottom: 36, left: 64 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
 
-  if (points.length === 0) return null;
+  if (rows.length === 0) return null;
 
-  const xs = points.map((p) => p.x);
-  const ys = points.map((p) => p.y);
+  const xs = rows.map((p) => p.x);
   const xMin = Math.min(...xs);
   const xMax = Math.max(...xs);
-  const yMin = Math.min(...ys);
-  const yMax = Math.max(...ys);
+
+  const allYs = rows.flatMap((p) => [p.cumulativeCost, p.totalValue]);
+  const yMin = Math.min(...allYs);
+  const yMax = Math.max(...allYs);
   const yPad = (yMax - yMin) * 0.1 || yMax * 0.1 || 1;
-  const yLo = yMin - yPad;
+  const yLo = Math.max(0, yMin - yPad);
   const yHi = yMax + yPad;
 
   const sx = (x: number) =>
     xMax === xMin ? PAD.left + innerW / 2 : PAD.left + ((x - xMin) / (xMax - xMin)) * innerW;
   const sy = (y: number) => PAD.top + innerH - ((y - yLo) / (yHi - yLo)) * innerH;
 
-  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${sx(p.x)} ${sy(p.y)}`).join(" ");
+  const valuePath = rows.map((p, i) => `${i === 0 ? "M" : "L"} ${sx(p.x)} ${sy(p.totalValue)}`).join(" ");
+  const costPath = rows.map((p, i) => `${i === 0 ? "M" : "L"} ${sx(p.x)} ${sy(p.cumulativeCost)}`).join(" ");
   const areaPath =
-    `M ${sx(points[0].x)} ${PAD.top + innerH} ` +
-    points.map((p) => `L ${sx(p.x)} ${sy(p.y)}`).join(" ") +
-    ` L ${sx(points[points.length - 1].x)} ${PAD.top + innerH} Z`;
+    `M ${sx(rows[0].x)} ${PAD.top + innerH} ` +
+    rows.map((p) => `L ${sx(p.x)} ${sy(p.totalValue)}`).join(" ") +
+    ` L ${sx(rows[rows.length - 1].x)} ${PAD.top + innerH} Z`;
 
   const yTicks = 4;
   const yTickVals = Array.from({ length: yTicks + 1 }, (_, i) => yLo + ((yHi - yLo) * i) / yTicks);
-  const xTickCount = Math.min(5, points.length);
+  const xTickCount = Math.min(6, rows.length);
   const xTickIdx = Array.from({ length: xTickCount }, (_, i) =>
-    Math.round((i * (points.length - 1)) / Math.max(1, xTickCount - 1))
+    Math.round((i * (rows.length - 1)) / Math.max(1, xTickCount - 1))
   );
 
   return (
@@ -84,60 +93,42 @@ function PriceChart({ points }: { points: ChartPoint[] }) {
 
       {yTickVals.map((v, i) => (
         <g key={`y-${i}`}>
-          <line
-            x1={PAD.left}
-            x2={PAD.left + innerW}
-            y1={sy(v)}
-            y2={sy(v)}
-            stroke="#e5e7eb"
-            strokeDasharray="3 3"
-          />
-          <text
-            x={PAD.left - 8}
-            y={sy(v) + 4}
-            textAnchor="end"
-            fontSize="10"
-            fill="#6b7280"
-          >
-            ฿{v.toFixed(0)}
+          <line x1={PAD.left} x2={PAD.left + innerW} y1={sy(v)} y2={sy(v)} stroke="#e5e7eb" strokeDasharray="3 3" />
+          <text x={PAD.left - 8} y={sy(v) + 4} textAnchor="end" fontSize="10" fill="#6b7280">
+            ฿{v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)}
           </text>
         </g>
       ))}
 
       <path d={areaPath} fill="url(#areaFill)" />
-      <path d={path} fill="none" stroke="#3b82f6" strokeWidth="2" />
+      <path d={costPath} fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeDasharray="5 4" />
+      <path d={valuePath} fill="none" stroke="#3b82f6" strokeWidth="2" />
 
-      {points.map((p, i) => {
-        const isBuy = p.tx.tx_type === "buy";
+      {rows.map((p, i) => {
+        const isSell = p.txType === "sell";
+        const isSnapshot = p.amount === 0;
+        const fill = isSnapshot ? "#9ca3af" : isSell ? "#ef4444" : "#16a34a";
         return (
-          <g key={`pt-${i}`}>
-            <circle
-              cx={sx(p.x)}
-              cy={sy(p.y)}
-              r="5"
-              fill={isBuy ? "#16a34a" : "#ef4444"}
-              stroke="white"
-              strokeWidth="2"
-            >
-              <title>
-                {`${isBuy ? "ซื้อ" : "ขาย"} ${p.tx.qty} หน่วย @ ฿${fmt(p.tx.price)}\nราคาตลาด ฿${fmt(p.y)}\n${fmtDate(p.date)}`}
-              </title>
-            </circle>
-          </g>
+          <circle
+            key={`pt-${i}`}
+            cx={sx(p.x)}
+            cy={sy(p.totalValue)}
+            r="4.5"
+            fill={fill}
+            stroke="white"
+            strokeWidth="2"
+          >
+            <title>
+              {`${fmtDate(p.date)}\n${isSnapshot ? "Snapshot" : isSell ? "ขาย" : "ซื้อ"} ฿${fmt(p.amount)}\nต้นทุนรวม ฿${fmt(p.cumulativeCost)}\nมูลค่ารวม ฿${fmt(p.totalValue)}\nกำไร ${p.totalValue - p.cumulativeCost >= 0 ? "+" : ""}฿${fmt(p.totalValue - p.cumulativeCost)}`}
+            </title>
+          </circle>
         );
       })}
 
       {xTickIdx.map((idx, i) => {
-        const p = points[idx];
+        const p = rows[idx];
         return (
-          <text
-            key={`x-${i}`}
-            x={sx(p.x)}
-            y={H - 12}
-            textAnchor="middle"
-            fontSize="10"
-            fill="#6b7280"
-          >
+          <text key={`x-${i}`} x={sx(p.x)} y={H - 12} textAnchor="middle" fontSize="10" fill="#6b7280">
             {fmtDate(p.date)}
           </text>
         );
@@ -175,7 +166,7 @@ export default function AssetDetailPage() {
         .eq("symbol", symbol)
         .order("date", { ascending: true });
 
-      const list = data || [];
+      const list = (data || []) as Transaction[];
       if (list.length === 0) setNotFound(true);
       setTxs(list);
       setLoading(false);
@@ -183,31 +174,39 @@ export default function AssetDetailPage() {
   }, [symbol, router]);
 
   const summary = useMemo(() => {
-    let qty = 0, totalCost = 0;
-    let lastPrice = 0;
+    let totalCost = 0;
+    let lastValue = 0;
     let assetType = "";
+    let lastDate = "";
     txs.forEach((t) => {
       assetType = t.asset_type;
-      lastPrice = t.current_price;
-      if (t.tx_type === "buy") {
-        qty += t.qty;
-        totalCost += t.price * t.qty;
-      } else {
-        qty -= t.qty;
-        totalCost -= t.price * t.qty;
+      const delta = t.tx_type === "sell" ? -Number(t.amount) : Number(t.amount);
+      totalCost += delta;
+      if (t.date >= lastDate) {
+        lastValue = Number(t.total_value);
+        lastDate = t.date;
       }
     });
-    const avgCost = qty > 0 ? totalCost / qty : 0;
-    const marketValue = qty * lastPrice;
-    const pl = marketValue - totalCost;
+    const pl = lastValue - totalCost;
     const plPct = totalCost > 0 ? (pl / totalCost) * 100 : 0;
-    return { qty, totalCost, avgCost, lastPrice, marketValue, pl, plPct, assetType };
+    return { totalCost, currentValue: lastValue, pl, plPct, assetType, txCount: txs.length };
   }, [txs]);
 
-  const chartPoints: ChartPoint[] = useMemo(
-    () => txs.map((t) => ({ x: new Date(t.date).getTime(), y: t.current_price, date: t.date, tx: t })),
-    [txs]
-  );
+  const chartRows: ChartRow[] = useMemo(() => {
+    let cum = 0;
+    return txs.map((t) => {
+      const delta = t.tx_type === "sell" ? -Number(t.amount) : Number(t.amount);
+      cum += delta;
+      return {
+        x: new Date(t.date).getTime(),
+        date: t.date,
+        cumulativeCost: cum,
+        totalValue: Number(t.total_value),
+        amount: Number(t.amount),
+        txType: t.tx_type,
+      };
+    });
+  }, [txs]);
 
   if (loading) {
     return (
@@ -260,19 +259,21 @@ export default function AssetDetailPage() {
                   {TYPE_LABEL[summary.assetType] || summary.assetType}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">รายละเอียดสินทรัพย์</p>
+              <p className="text-xs text-gray-500 mt-0.5">{summary.txCount} รายการ</p>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: "จำนวนที่ถือ", value: summary.qty % 1 === 0 ? `${summary.qty}` : summary.qty.toFixed(4), color: "text-gray-900" },
-            { label: "ราคาเฉลี่ย/หน่วย", value: `฿${fmt(summary.avgCost)}`, color: "text-gray-900" },
-            { label: "ราคาตลาดล่าสุด", value: `฿${fmt(summary.lastPrice)}`, color: "text-gray-900" },
+            { label: "ต้นทุนรวม", value: `฿${fmt(summary.totalCost)}`, color: "text-gray-900" },
+            { label: "มูลค่าปัจจุบัน", value: `฿${fmt(summary.currentValue)}`, color: "text-gray-900" },
             { label: "กำไร / ขาดทุน",
-              value: `${summary.pl >= 0 ? "+" : ""}฿${fmt(summary.pl)} (${summary.plPct >= 0 ? "+" : ""}${summary.plPct.toFixed(2)}%)`,
+              value: `${summary.pl >= 0 ? "+" : ""}฿${fmt(summary.pl)}`,
               color: summary.pl >= 0 ? "text-green-600" : "text-red-500" },
+            { label: "ผลตอบแทน",
+              value: `${summary.plPct >= 0 ? "+" : ""}${summary.plPct.toFixed(2)}%`,
+              color: summary.plPct >= 0 ? "text-green-600" : "text-red-500" },
           ].map((m) => (
             <div key={m.label} className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs text-gray-500 mb-1">{m.label}</p>
@@ -284,22 +285,17 @@ export default function AssetDetailPage() {
         <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-medium text-gray-700">กราฟราคาตลาด</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                ราคาตลาดที่บันทึกในแต่ละครั้ง · จุดสีแสดงรายการซื้อ/ขาย
-              </p>
+              <h2 className="text-sm font-medium text-gray-700">มูลค่าและต้นทุนตามเวลา</h2>
+              <p className="text-xs text-gray-400 mt-0.5">เส้นน้ำเงิน = มูลค่าตลาด · เส้นเทาประ = ต้นทุนสะสม</p>
             </div>
             <div className="flex items-center gap-3 text-xs text-gray-500">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-600" />ซื้อ
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500" />ขาย
-              </span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-600" />ซื้อ</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" />ขาย</span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" />Snapshot</span>
             </div>
           </div>
-          {chartPoints.length >= 2 ? (
-            <PriceChart points={chartPoints} />
+          {chartRows.length >= 2 ? (
+            <ValueChart rows={chartRows} />
           ) : (
             <div className="text-center py-12 text-sm text-gray-400">
               ต้องมีรายการอย่างน้อย 2 ครั้งเพื่อแสดงกราฟ
@@ -317,34 +313,44 @@ export default function AssetDetailPage() {
               <thead>
                 <tr className="bg-gray-50 text-xs text-gray-500">
                   <th className="text-left px-5 py-3 font-medium">วันที่</th>
-                  <th className="text-left px-5 py-3 font-medium">ประเภท</th>
-                  <th className="text-right px-5 py-3 font-medium">จำนวน</th>
-                  <th className="text-right px-5 py-3 font-medium">ราคา/หน่วย</th>
-                  <th className="text-right px-5 py-3 font-medium">มูลค่ารายการ</th>
-                  <th className="text-right px-5 py-3 font-medium">ราคาตลาดขณะนั้น</th>
+                  <th className="text-left px-5 py-3 font-medium">รายการ</th>
+                  <th className="text-right px-5 py-3 font-medium">จำนวนเข้าซื้อ</th>
+                  <th className="text-right px-5 py-3 font-medium">ต้นทุนสะสม</th>
+                  <th className="text-right px-5 py-3 font-medium">มูลค่ารวม</th>
+                  <th className="text-right px-5 py-3 font-medium">กำไร / ขาดทุน</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {[...txs].reverse().map((t) => {
-                  const isBuy = t.tx_type === "buy";
+                {[...chartRows].reverse().map((r, i) => {
+                  const isSell = r.txType === "sell";
+                  const isSnapshot = r.amount === 0;
+                  const pl = r.totalValue - r.cumulativeCost;
+                  const plPct = r.cumulativeCost > 0 ? (pl / r.cumulativeCost) * 100 : 0;
                   return (
-                    <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-4 text-gray-700">{fmtDate(t.date)}</td>
+                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-5 py-4 text-gray-700">{fmtDate(r.date)}</td>
                       <td className="px-5 py-4">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          isBuy ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                          isSnapshot
+                            ? "bg-gray-100 text-gray-600"
+                            : isSell ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"
                         }`}>
-                          {isBuy ? "ซื้อ" : "ขาย"}
+                          {isSnapshot ? "Snapshot" : isSell ? "ขาย" : "ซื้อ"}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-right text-gray-600">
-                        {t.qty % 1 === 0 ? t.qty : t.qty.toFixed(4)}
+                        {r.amount === 0 ? "—" : `${isSell ? "-" : "+"}฿${fmt(r.amount)}`}
                       </td>
-                      <td className="px-5 py-4 text-right text-gray-600">฿{fmt(t.price)}</td>
-                      <td className="px-5 py-4 text-right font-medium text-gray-900">
-                        ฿{fmt(t.price * t.qty)}
+                      <td className="px-5 py-4 text-right text-gray-600">฿{fmt(r.cumulativeCost)}</td>
+                      <td className="px-5 py-4 text-right font-medium text-gray-900">฿{fmt(r.totalValue)}</td>
+                      <td className="px-5 py-4 text-right">
+                        <p className={`font-medium ${pl >= 0 ? "text-green-600" : "text-red-500"}`}>
+                          {pl >= 0 ? "+" : ""}฿{fmt(pl)}
+                        </p>
+                        <p className={`text-xs mt-0.5 ${plPct >= 0 ? "text-green-500" : "text-red-400"}`}>
+                          {plPct >= 0 ? "+" : ""}{plPct.toFixed(2)}%
+                        </p>
                       </td>
-                      <td className="px-5 py-4 text-right text-gray-500">฿{fmt(t.current_price)}</td>
                     </tr>
                   );
                 })}
