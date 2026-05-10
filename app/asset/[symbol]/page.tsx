@@ -37,7 +37,7 @@ function fmtDate(s: string) {
   return d.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
 }
 
-type HistoryRow = ChartRow & { amount: number; txType: string };
+type HistoryRow = ChartRow & { id: string; amount: number; txType: string };
 
 export default function AssetDetailPage() {
   const router = useRouter();
@@ -49,6 +49,9 @@ export default function AssetDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [confirmDelete, setConfirmDelete] = useState<HistoryRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -102,6 +105,7 @@ export default function AssetDetailPage() {
       const delta = t.tx_type === "sell" ? -Number(t.amount) : Number(t.amount);
       cum += delta;
       return {
+        id: t.id,
         x: new Date(t.date).getTime(),
         date: t.date,
         cumulativeCost: cum,
@@ -127,6 +131,28 @@ export default function AssetDetailPage() {
     }),
     [historyRows]
   );
+
+  async function handleDelete() {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    setDeleteError("");
+    const { error } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", confirmDelete.id);
+    if (error) {
+      setDeleteError("ลบไม่สำเร็จ: " + error.message);
+      setDeleting(false);
+      return;
+    }
+    const remaining = txs.filter((t) => t.id !== confirmDelete.id);
+    setTxs(remaining);
+    setConfirmDelete(null);
+    setDeleting(false);
+    if (remaining.length === 0) {
+      router.push("/");
+    }
+  }
 
   const sortedHistory = useMemo(() => [...historyRows].reverse(), [historyRows]);
   const pagedHistory = useMemo(() => {
@@ -244,6 +270,7 @@ export default function AssetDetailPage() {
                   <th className="text-right px-5 py-3 font-medium">ต้นทุนสะสม</th>
                   <th className="text-right px-5 py-3 font-medium">มูลค่ารวม</th>
                   <th className="text-right px-5 py-3 font-medium">กำไร / ขาดทุน</th>
+                  <th className="px-3 py-3 font-medium w-12"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -277,6 +304,17 @@ export default function AssetDetailPage() {
                           {plPct >= 0 ? "+" : ""}{plPct.toFixed(2)}%
                         </p>
                       </td>
+                      <td className="px-3 py-4 text-right">
+                        <button
+                          onClick={() => { setDeleteError(""); setConfirmDelete(r); }}
+                          aria-label="ลบรายการนี้"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                          </svg>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -293,6 +331,60 @@ export default function AssetDetailPage() {
         </div>
 
       </div>
+
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
+          onClick={() => !deleting && setConfirmDelete(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">ลบรายการนี้?</h3>
+                <p className="text-sm text-gray-500 mt-1">การลบจะไม่สามารถย้อนกลับได้</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg px-3 py-2.5 text-sm text-gray-700 mb-4 space-y-1">
+              <div className="flex justify-between"><span className="text-gray-500">วันที่</span><span>{fmtDate(confirmDelete.date)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">รายการ</span><span>{confirmDelete.amount === 0 ? "Snapshot" : confirmDelete.txType === "sell" ? "ขาย" : "ซื้อ"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">จำนวน</span><span>{confirmDelete.amount === 0 ? "—" : `฿${fmt(confirmDelete.amount)}`}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">มูลค่ารวม</span><span>฿{fmt(confirmDelete.totalValue)}</span></div>
+            </div>
+
+            {deleteError && (
+              <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">
+                {deleteError}
+              </p>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-lg transition"
+              >
+                {deleting ? "กำลังลบ..." : "ลบรายการนี้"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
