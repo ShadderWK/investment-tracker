@@ -120,6 +120,7 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [chartView, setChartView] = useState<"timeline" | "allocation">("timeline");
+  const [chartRange, setChartRange] = useState<"1m" | "3m" | "6m" | "1y" | "all">("all");
   const [admin, setAdmin] = useState(false);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [livePriceError, setLivePriceError] = useState("");
@@ -233,6 +234,12 @@ export default function DashboardPage() {
     }
   }
   const series = useMemo(() => computePortfolioSeries(transactions), [transactions]);
+  const filteredSeries = useMemo(() => {
+    if (chartRange === "all") return series;
+    const days = { "1m": 30, "3m": 90, "6m": 180, "1y": 365 }[chartRange];
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return series.filter((r) => r.x >= cutoff);
+  }, [series, chartRange]);
   const sortedAssets = useMemo(
     () => [...assets].sort((a, b) => b.currentValue - a.currentValue),
     [assets]
@@ -340,7 +347,7 @@ export default function DashboardPage() {
 
         {(series.length >= 2 || pieSlices.length > 0) && (
           <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6">
-            <div className="flex items-center justify-between mb-4 gap-3">
+            <div className="flex items-center justify-between mb-3 gap-3">
               <div className="min-w-0">
                 <h2 className="text-sm font-medium text-gray-300">
                   {chartView === "timeline" ? "ภาพรวมพอร์ตตามเวลา" : "อัตราส่วนสินทรัพย์"}
@@ -374,9 +381,30 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
+            {chartView === "timeline" && (
+              <div className="flex items-center gap-1 mb-3">
+                {(["1m", "3m", "6m", "1y", "all"] as const).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setChartRange(r)}
+                    className={`px-2.5 py-1 text-xs font-medium rounded-md transition ${
+                      chartRange === r
+                        ? "bg-blue-600 text-white"
+                        : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                    }`}
+                  >
+                    {r === "all" ? "ทั้งหมด" : r.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
             {chartView === "timeline" ? (
-              series.length >= 2 ? (
-                <ValueChart rows={series} />
+              filteredSeries.length >= 2 ? (
+                <ValueChart rows={filteredSeries} />
+              ) : filteredSeries.length === 0 && series.length >= 2 ? (
+                <div className="text-center py-12 text-sm text-gray-500">
+                  ไม่มีข้อมูลในช่วงเวลานี้
+                </div>
               ) : (
                 <div className="text-center py-12 text-sm text-gray-500">
                   ต้องมีข้อมูลอย่างน้อย 2 จุดเพื่อแสดงกราฟตามเวลา
