@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,15 +11,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setLoading(true);
-
-    // --- mock login (ทดสอบก่อน เดี๋ยวเชื่อม Supabase ทีหลัง) ---
-    await new Promise((r) => setTimeout(r, 800));
 
     if (!email || !password) {
       setError("กรุณากรอกอีเมลและรหัสผ่าน");
@@ -32,8 +32,36 @@ export default function LoginPage() {
       return;
     }
 
-    // mock สำเร็จ → ไปหน้า dashboard
-    router.push("/");
+    if (isRegister) {
+      // --- สมัครสมาชิก ---
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: name },
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess("สมัครสมาชิกสำเร็จ! กรุณาตรวจสอบอีเมลเพื่อยืนยันตัวตนครับ");
+      }
+    } else {
+      // --- เข้าสู่ระบบ ---
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+      } else {
+        router.push("/");
+        router.refresh();
+      }
+    }
+
     setLoading(false);
   }
 
@@ -57,15 +85,12 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-
           <form onSubmit={handleSubmit} className="space-y-4">
 
             {/* Name (เฉพาะหน้า register) */}
             {isRegister && (
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  ชื่อของคุณ
-                </label>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">ชื่อของคุณ</label>
                 <input
                   type="text"
                   placeholder="กรอกชื่อ"
@@ -78,9 +103,7 @@ export default function LoginPage() {
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                อีเมล
-              </label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">อีเมล</label>
               <input
                 type="email"
                 placeholder="example@email.com"
@@ -92,9 +115,7 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                รหัสผ่าน
-              </label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">รหัสผ่าน</label>
               <input
                 type="password"
                 placeholder="อย่างน้อย 6 ตัวอักษร"
@@ -104,10 +125,17 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Error message */}
+            {/* Error */}
             {error && (
               <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                 {error}
+              </p>
+            )}
+
+            {/* Success */}
+            {success && (
+              <p className="text-xs text-green-600 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                {success}
               </p>
             )}
 
@@ -129,16 +157,13 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-gray-100" />
           </div>
 
-          {/* Toggle login/register */}
+          {/* Toggle */}
           <button
-            onClick={() => { setIsRegister(!isRegister); setError(""); }}
+            onClick={() => { setIsRegister(!isRegister); setError(""); setSuccess(""); }}
             className="w-full text-sm text-gray-600 hover:text-blue-600 transition text-center"
           >
-            {isRegister
-              ? "มีบัญชีแล้ว? เข้าสู่ระบบ"
-              : "ยังไม่มีบัญชี? สมัครสมาชิก"}
+            {isRegister ? "มีบัญชีแล้ว? เข้าสู่ระบบ" : "ยังไม่มีบัญชี? สมัครสมาชิก"}
           </button>
-
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
