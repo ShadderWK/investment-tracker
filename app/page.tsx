@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/log";
+import { isAdmin } from "@/lib/admin";
 import { ValueChart, type ChartRow } from "./_components/ValueChart";
 import { PieChart, type PieSlice } from "./_components/PieChart";
 import { Pagination } from "./_components/Pagination";
@@ -116,6 +119,7 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [chartView, setChartView] = useState<"timeline" | "allocation">("timeline");
+  const [admin, setAdmin] = useState(false);
   const SESSION_DURATION = 60 * 60 * 1000;
 
   useEffect(() => {
@@ -138,6 +142,7 @@ export default function DashboardPage() {
     const user = session.user;
     setUserEmail(user.email || "");
     setUserName(user.user_metadata?.full_name || user.email?.split("@")[0] || "User");
+    setAdmin(isAdmin(user.email));
     await loadTransactions(user.id);
     setLoading(false);
   }
@@ -169,6 +174,7 @@ export default function DashboardPage() {
 
   async function handleLogout() {
     setLoggingOut(true);
+    await logActivity("logout");
     await supabase.auth.signOut();
     localStorage.removeItem("login_time");
     localStorage.removeItem("portfolio_id");
@@ -226,6 +232,14 @@ export default function DashboardPage() {
             <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
               {userName.slice(0, 1).toUpperCase()}
             </div>
+            {admin && (
+              <Link
+                href="/admin"
+                className="px-3 py-2 text-sm text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition"
+              >
+                Admin
+              </Link>
+            )}
             <button
               onClick={handleLogout}
               disabled={loggingOut}

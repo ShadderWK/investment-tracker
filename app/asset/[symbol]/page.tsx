@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/log";
 import { ValueChart, type ChartMarker, type ChartRow } from "@/app/_components/ValueChart";
 import { Pagination } from "@/app/_components/Pagination";
 
@@ -145,6 +146,12 @@ export default function AssetDetailPage() {
       setDeleting(false);
       return;
     }
+    await logActivity("tx_delete", {
+      tx_id: confirmDelete.id,
+      symbol,
+      amount: confirmDelete.amount,
+      date: confirmDelete.date,
+    });
     const remaining = txs.filter((t) => t.id !== confirmDelete.id);
     setTxs(remaining);
     setConfirmDelete(null);

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/log";
 
 export default function AddPage() {
   const router = useRouter();
@@ -70,6 +71,14 @@ export default function AddPage() {
     if (insertError) {
       setError("เกิดข้อผิดพลาด: " + insertError.message);
     } else {
+      await logActivity("tx_add", {
+        symbol: form.symbol.trim().toUpperCase(),
+        asset_type: form.asset_type,
+        tx_type: form.tx_type,
+        amount: parseFloat(form.amount),
+        total_value: parseFloat(form.total_value),
+        date: form.date,
+      });
       setSuccess(true);
       setTimeout(() => router.push("/"), 1200);
     }
