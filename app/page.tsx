@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/log";
 import { isAdmin } from "@/lib/admin";
+import { isLive } from "@/lib/asset-sources";
 import { ValueChart, type ChartRow } from "./_components/ValueChart";
 import { PieChart, type PieSlice } from "./_components/PieChart";
 import { Pagination } from "./_components/Pagination";
@@ -28,6 +29,7 @@ type Asset = {
   pl: number;
   plPct: number;
   txCount: number;
+  lastDate: string;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -47,7 +49,7 @@ function fmt(n: number) {
 }
 
 function computeAssets(transactions: Transaction[]): Asset[] {
-  const map: Record<string, Asset & { lastDate: string }> = {};
+  const map: Record<string, Asset> = {};
   transactions.forEach((tx) => {
     const sym = tx.symbol;
     if (!map[sym]) {
@@ -67,8 +69,7 @@ function computeAssets(transactions: Transaction[]): Asset[] {
     }
   });
   return Object.values(map).map((a) => ({
-    symbol: a.symbol, assetType: a.assetType,
-    totalCost: a.totalCost, currentValue: a.currentValue, txCount: a.txCount,
+    ...a,
     pl: a.currentValue - a.totalCost,
     plPct: a.totalCost > 0 ? ((a.currentValue - a.totalCost) / a.totalCost) * 100 : 0,
   }));
@@ -120,6 +121,10 @@ export default function DashboardPage() {
   const [pageSize, setPageSize] = useState(10);
   const [chartView, setChartView] = useState<"timeline" | "allocation">("timeline");
   const [admin, setAdmin] = useState(false);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [livePriceError, setLivePriceError] = useState("");
+  const [refreshingPrices, setRefreshingPrices] = useState(false);
+  const [pricesFetchedAt, setPricesFetchedAt] = useState<string | null>(null);
   const SESSION_DURATION = 60 * 60 * 1000;
 
   useEffect(() => {
@@ -181,7 +186,52 @@ export default function DashboardPage() {
     router.replace("/login");
   }
 
-  const assets = useMemo(() => computeAssets(transactions), [transactions]);
+  const baseAssets = useMemo(() => computeAssets(transactions), [transactions]);
+  const assets = useMemo(
+    () => baseAssets.map((a) => {
+      const live = livePrices[a.symbol];
+      if (live == null) return a;
+      const pl = live - a.totalCost;
+      return {
+        ...a,
+        currentValue: live,
+        pl,
+        plPct: a.totalCost > 0 ? (pl / a.totalCost) * 100 : 0,
+      };
+    }),
+    [baseAssets, livePrices]
+  );
+
+  async function refreshPrices() {
+    setRefreshingPrices(true);
+    setLivePriceError("");
+    try {
+      const items = baseAssets
+        .filter((a) => isLive(a.symbol) && a.lastDate)
+        .map((a) => ({ symbol: a.symbol, snapshotDate: a.lastDate, snapshotValue: a.currentValue }));
+      if (items.length === 0) {
+        setLivePriceError("ไม่มี asset ที่รองรับ live price (รองรับ: BTC, ETH, SOL, BNB, ADA, XRP, DOGE, USDT)");
+        return;
+      }
+      const res = await fetch("/api/prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const next: Record<string, number> = {};
+      (data.prices as { symbol: string; liveValue: number | null }[]).forEach((p) => {
+        if (p.liveValue != null) next[p.symbol] = p.liveValue;
+      });
+      setLivePrices(next);
+      setPricesFetchedAt(data.fetched_at);
+    } catch (e) {
+      setLivePriceError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRefreshingPrices(false);
+    }
+  }
   const series = useMemo(() => computePortfolioSeries(transactions), [transactions]);
   const sortedAssets = useMemo(
     () => [...assets].sort((a, b) => b.currentValue - a.currentValue),
@@ -249,6 +299,30 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        <div className="flex items-center justify-end gap-2 mb-3">
+          {pricesFetchedAt && (
+            <span className="text-xs text-gray-400">
+              อัปเดตเมื่อ {new Date(pricesFetchedAt).toLocaleTimeString("th-TH")}
+            </span>
+          )}
+          <button
+            onClick={refreshPrices}
+            disabled={refreshingPrices}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-700 disabled:opacity-50 transition"
+          >
+            <svg className={`w-3.5 h-3.5 ${refreshingPrices ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {refreshingPrices ? "กำลังดึง..." : "ดึงราคาล่าสุด"}
+          </button>
+        </div>
+
+        {livePriceError && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+            {livePriceError}
+          </p>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
@@ -369,7 +443,15 @@ export default function DashboardPage() {
                               {a.symbol.slice(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <p className="font-medium text-gray-900">{a.symbol}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-medium text-gray-900">{a.symbol}</p>
+                                {livePrices[a.symbol] != null && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                    LIVE
+                                  </span>
+                                )}
+                              </div>
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[a.assetType] || "bg-gray-100 text-gray-600"}`}>
                                 {TYPE_LABEL[a.assetType] || a.assetType}
                               </span>
