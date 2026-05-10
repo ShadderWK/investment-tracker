@@ -11,12 +11,6 @@ type AssetSymbol = {
   created_at: string;
 };
 
-type TxSymbol = {
-  symbol: string;
-  count: number;
-  asset_type: string;
-};
-
 const TYPE_LABEL: Record<string, string> = {
   stock: "หุ้น",
   crypto: "คริปโต",
@@ -49,13 +43,6 @@ export default function AssetsPage() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
 
-  // remap state
-  const [txSymbols, setTxSymbols] = useState<TxSymbol[]>([]);
-  const [remapTargets, setRemapTargets] = useState<Record<string, string>>({});
-  const [remapping, setRemapping] = useState<Record<string, boolean>>({});
-  const [remapResult, setRemapResult] = useState<Record<string, string>>({});
-  const [remapLoading, setRemapLoading] = useState(true);
-
   async function load() {
     setLoading(true);
     setError("");
@@ -69,22 +56,7 @@ export default function AssetsPage() {
     }
   }
 
-  async function loadRemap() {
-    setRemapLoading(true);
-    try {
-      const data = await adminFetch("/api/admin/assets/remap");
-      setTxSymbols(data.tx_symbols || []);
-    } catch {
-      // non-critical
-    } finally {
-      setRemapLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-    loadRemap();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -93,17 +65,6 @@ export default function AssetsPage() {
       (a) => a.symbol.toLowerCase().includes(q) || (a.name || "").toLowerCase().includes(q)
     );
   }, [assets, search]);
-
-  const assetSymbolSet = useMemo(() => new Set(assets.map((a) => a.symbol)), [assets]);
-
-  const unmatchedTx = useMemo(
-    () => txSymbols.filter((t) => !assetSymbolSet.has(t.symbol)),
-    [txSymbols, assetSymbolSet]
-  );
-  const matchedTx = useMemo(
-    () => txSymbols.filter((t) => assetSymbolSet.has(t.symbol)),
-    [txSymbols, assetSymbolSet]
-  );
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -138,32 +99,9 @@ export default function AssetsPage() {
     }
   }
 
-  async function handleRemap(fromSymbol: string) {
-    const toSymbol = remapTargets[fromSymbol];
-    if (!toSymbol) return;
-    setRemapping((r) => ({ ...r, [fromSymbol]: true }));
-    setRemapResult((r) => ({ ...r, [fromSymbol]: "" }));
-    try {
-      const res = await adminFetch("/api/admin/assets/remap", {
-        method: "POST",
-        body: JSON.stringify({ from_symbol: fromSymbol, to_symbol: toSymbol }),
-      });
-      setRemapResult((r) => ({ ...r, [fromSymbol]: `✓ เชื่อมโยงสำเร็จ (${res.updated ?? "?"} รายการ)` }));
-      await loadRemap();
-    } catch (e) {
-      setRemapResult((r) => ({
-        ...r,
-        [fromSymbol]: `✗ ${e instanceof Error ? e.message : String(e)}`,
-      }));
-    } finally {
-      setRemapping((r) => ({ ...r, [fromSymbol]: false }));
-    }
-  }
-
   return (
     <div className="space-y-6">
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-100">Asset Symbols</h1>
@@ -178,7 +116,6 @@ export default function AssetsPage() {
         />
       </div>
 
-      {/* Add form */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
         <h2 className="text-sm font-medium text-gray-300 mb-3">เพิ่ม Symbol ใหม่</h2>
         <form onSubmit={handleAdd} className="flex items-end gap-3 flex-wrap">
@@ -233,7 +170,6 @@ export default function AssetsPage() {
         <p className="text-sm text-red-400 bg-red-950 border border-red-900 rounded-lg px-3 py-2">{error}</p>
       )}
 
-      {/* Asset symbols table */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
         {loading ? (
           <div className="text-center py-16 text-sm text-gray-500">กำลังโหลด...</div>
@@ -282,120 +218,6 @@ export default function AssetsPage() {
         )}
       </div>
 
-      {/* Transaction symbol mapping */}
-      <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-800">
-          <h2 className="text-sm font-medium text-gray-300">เชื่อมโยง Transaction เก่า</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Symbols จาก transactions ที่ยังไม่ตรงกับรายการ · เลือก symbol ปลายทางแล้วกด เชื่อมโยง
-          </p>
-        </div>
-
-        {remapLoading ? (
-          <div className="text-center py-10 text-sm text-gray-500">กำลังโหลด...</div>
-        ) : txSymbols.length === 0 ? (
-          <div className="text-center py-10 text-sm text-gray-500">ยังไม่มี transaction ในระบบ</div>
-        ) : (
-          <div className="divide-y divide-gray-800">
-
-            {unmatchedTx.length > 0 && (
-              <div>
-                <div className="px-5 py-2 bg-amber-950/30">
-                  <p className="text-xs font-medium text-amber-400">ไม่ตรงกับรายการ ({unmatchedTx.length})</p>
-                </div>
-                {unmatchedTx.map((t) => (
-                  <div key={t.symbol} className="px-5 py-3 flex items-center gap-3 flex-wrap">
-                    <div className="min-w-[140px]">
-                      <p className="font-semibold text-sm text-gray-100">{t.symbol}</p>
-                      <p className="text-xs text-gray-500">{t.count} transactions · {TYPE_LABEL[t.asset_type] || t.asset_type}</p>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                    <select
-                      value={remapTargets[t.symbol] || ""}
-                      onChange={(e) => setRemapTargets((r) => ({ ...r, [t.symbol]: e.target.value }))}
-                      className="px-3 py-1.5 text-sm border border-gray-600 rounded-lg bg-gray-800 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 min-w-[180px]"
-                    >
-                      <option value="">— เลือก symbol ปลายทาง —</option>
-                      {assets.map((a) => (
-                        <option key={a.symbol} value={a.symbol}>
-                          {a.symbol}{a.name ? ` — ${a.name}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => handleRemap(t.symbol)}
-                      disabled={!remapTargets[t.symbol] || remapping[t.symbol]}
-                      className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg transition shrink-0"
-                    >
-                      {remapping[t.symbol] ? "กำลังเชื่อม..." : "เชื่อมโยง"}
-                    </button>
-                    {remapResult[t.symbol] && (
-                      <p className={`text-xs w-full mt-0.5 ${remapResult[t.symbol].startsWith("✓") ? "text-green-400" : "text-red-400"}`}>
-                        {remapResult[t.symbol]}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {matchedTx.length > 0 && (
-              <div>
-                <div className="px-5 py-2 bg-green-950/20">
-                  <p className="text-xs font-medium text-green-400">ตรงกับรายการแล้ว ({matchedTx.length})</p>
-                </div>
-                {matchedTx.map((t) => (
-                  <div key={t.symbol} className="px-5 py-3 flex items-center gap-3 flex-wrap">
-                    <div className="min-w-[140px]">
-                      <p className="font-semibold text-sm text-gray-100">{t.symbol}</p>
-                      <p className="text-xs text-gray-500">{t.count} transactions · {TYPE_LABEL[t.asset_type] || t.asset_type}</p>
-                    </div>
-                    <span className="text-xs text-green-400 flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
-                      ตรงกันแล้ว
-                    </span>
-                    <div className="ml-auto flex items-center gap-2">
-                      <select
-                        value={remapTargets[t.symbol] || ""}
-                        onChange={(e) => setRemapTargets((r) => ({ ...r, [t.symbol]: e.target.value }))}
-                        className="px-3 py-1.5 text-sm border border-gray-700 rounded-lg bg-gray-800 text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">ย้ายไป symbol อื่น...</option>
-                        {assets.filter((a) => a.symbol !== t.symbol).map((a) => (
-                          <option key={a.symbol} value={a.symbol}>
-                            {a.symbol}{a.name ? ` — ${a.name}` : ""}
-                          </option>
-                        ))}
-                      </select>
-                      {remapTargets[t.symbol] && (
-                        <button
-                          onClick={() => handleRemap(t.symbol)}
-                          disabled={remapping[t.symbol]}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg transition shrink-0"
-                        >
-                          {remapping[t.symbol] ? "กำลังย้าย..." : "ย้าย"}
-                        </button>
-                      )}
-                    </div>
-                    {remapResult[t.symbol] && (
-                      <p className={`text-xs w-full mt-0.5 ${remapResult[t.symbol].startsWith("✓") ? "text-green-400" : "text-red-400"}`}>
-                        {remapResult[t.symbol]}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-          </div>
-        )}
-      </div>
-
-      {/* Delete modal */}
       {confirmDelete && (
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
