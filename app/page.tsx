@@ -247,7 +247,11 @@ export default function DashboardPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {assets.map((a) => (
-                    <tr key={a.symbol} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={a.symbol}
+                      onClick={() => router.push(`/asset/${encodeURIComponent(a.symbol)}`)}
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
