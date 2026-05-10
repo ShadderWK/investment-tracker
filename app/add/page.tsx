@@ -12,10 +12,10 @@ export default function AddPage() {
 
   const [form, setForm] = useState({
     symbol: "",
-    asset_type: "stock",
-    qty: "",
-    price: "",
-    current_price: "",
+    asset_type: "fund",
+    tx_type: "buy",
+    amount: "",
+    total_value: "",
     date: new Date().toISOString().split("T")[0],
   });
 
@@ -28,20 +28,16 @@ export default function AddPage() {
     e.preventDefault();
     setError("");
 
-    // Validate
     if (!form.symbol.trim()) { setError("กรุณากรอกชื่อสินทรัพย์"); return; }
-    if (!form.qty || parseFloat(form.qty) <= 0) { setError("กรุณากรอกจำนวนที่ถูกต้อง"); return; }
-    if (!form.price || parseFloat(form.price) <= 0) { setError("กรุณากรอกราคาที่ซื้อ"); return; }
-    if (!form.current_price || parseFloat(form.current_price) <= 0) { setError("กรุณากรอกราคาปัจจุบัน"); return; }
-    if (!form.date) { setError("กรุณาเลือกวันที่ซื้อ"); return; }
+    if (form.amount === "" || parseFloat(form.amount) < 0) { setError("กรุณากรอกจำนวนเงินที่ใส่ (≥ 0)"); return; }
+    if (!form.total_value || parseFloat(form.total_value) < 0) { setError("กรุณากรอกมูลค่ารวมหลังรายการนี้"); return; }
+    if (!form.date) { setError("กรุณาเลือกวันที่"); return; }
 
     setLoading(true);
 
-    // เช็ค session
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { router.replace("/login"); return; }
 
-    // ดึง portfolio_id
     let portfolioId = localStorage.getItem("portfolio_id");
     if (!portfolioId) {
       const { data: portfolios } = await supabase
@@ -59,15 +55,13 @@ export default function AddPage() {
       }
     }
 
-    // บันทึก transaction
     const { error: insertError } = await supabase.from("transactions").insert({
       portfolio_id: portfolioId,
       symbol: form.symbol.trim().toUpperCase(),
       asset_type: form.asset_type,
-      tx_type: "buy",
-      price: parseFloat(form.price),
-      qty: parseFloat(form.qty),
-      current_price: parseFloat(form.current_price),
+      tx_type: form.tx_type,
+      amount: parseFloat(form.amount),
+      total_value: parseFloat(form.total_value),
       date: form.date,
     });
 
@@ -77,7 +71,7 @@ export default function AddPage() {
       setError("เกิดข้อผิดพลาด: " + insertError.message);
     } else {
       setSuccess(true);
-      setTimeout(() => router.push("/"), 1500);
+      setTimeout(() => router.push("/"), 1200);
     }
   }
 
@@ -97,11 +91,15 @@ export default function AddPage() {
     );
   }
 
+  const profit =
+    form.amount && form.total_value
+      ? parseFloat(form.total_value) - parseFloat(form.amount || "0")
+      : null;
+
   return (
     <main className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-lg mx-auto">
 
-        {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => router.back()}
@@ -113,33 +111,43 @@ export default function AddPage() {
           </button>
           <div>
             <h1 className="text-xl font-semibold text-gray-900">เพิ่มการลงทุน</h1>
-            <p className="text-sm text-gray-500">บันทึกรายการซื้อสินทรัพย์</p>
+            <p className="text-sm text-gray-500">บันทึกรายการลงทุน (DCA)</p>
           </div>
         </div>
 
-        {/* Form Card */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5">
 
-            {/* ประเภทสินทรัพย์ */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                ประเภทสินทรัพย์
-              </label>
-              <select
-                name="asset_type"
-                value={form.asset_type}
-                onChange={handleChange}
-                className="w-full px-3 py-2.5 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-              >
-                <option value="stock">หุ้น (Stock)</option>
-                <option value="crypto">คริปโต (Crypto)</option>
-                <option value="gold">ทองคำ</option>
-                <option value="etf">ETF / กองทุน</option>
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">ประเภท</label>
+                <select
+                  name="asset_type"
+                  value={form.asset_type}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2.5 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="fund">กองทุนรวม</option>
+                  <option value="etf">ETF</option>
+                  <option value="stock">หุ้น</option>
+                  <option value="crypto">คริปโต</option>
+                  <option value="gold">ทองคำ</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">รายการ</label>
+                <select
+                  name="tx_type"
+                  value={form.tx_type}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2.5 text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="buy">ซื้อ / DCA</option>
+                  <option value="sell">ขาย</option>
+                </select>
+              </div>
             </div>
 
-            {/* ชื่อสินทรัพย์ */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">
                 ชื่อสินทรัพย์ / Ticker
@@ -149,39 +157,21 @@ export default function AddPage() {
                 name="symbol"
                 value={form.symbol}
                 onChange={handleChange}
-                placeholder="เช่น AAPL, BTC, PTT"
+                placeholder="เช่น KUS500XA, KFIRMF"
                 className="w-full px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition uppercase"
               />
             </div>
 
-            {/* จำนวนที่ซื้อ */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                จำนวนที่ซื้อ (หน่วย)
-              </label>
-              <input
-                type="number"
-                name="qty"
-                value={form.qty}
-                onChange={handleChange}
-                placeholder="เช่น 10"
-                min="0"
-                step="any"
-                className="w-full px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-              />
-            </div>
-
-            {/* ราคาที่ซื้อ */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                ราคาที่ซื้อต่อหน่วย (บาท)
+                จำนวนเงินที่ใส่/ขายครั้งนี้ (บาท)
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">฿</span>
                 <input
                   type="number"
-                  name="price"
-                  value={form.price}
+                  name="amount"
+                  value={form.amount}
                   onChange={handleChange}
                   placeholder="0.00"
                   min="0"
@@ -191,17 +181,16 @@ export default function AddPage() {
               </div>
             </div>
 
-            {/* ราคาปัจจุบัน */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                ราคาปัจจุบันต่อหน่วย (บาท)
+                มูลค่ารวมของพอร์ตนี้ ณ วันที่ (บาท)
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">฿</span>
                 <input
                   type="number"
-                  name="current_price"
-                  value={form.current_price}
+                  name="total_value"
+                  value={form.total_value}
                   onChange={handleChange}
                   placeholder="0.00"
                   min="0"
@@ -209,13 +198,11 @@ export default function AddPage() {
                   className="w-full pl-7 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                 />
               </div>
+              <p className="text-xs text-gray-400 mt-1">มูลค่าตลาดรวมของสินทรัพย์นี้หลังรายการนี้</p>
             </div>
 
-            {/* วันที่ซื้อ */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                วันที่ซื้อ
-              </label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">วันที่</label>
               <input
                 type="date"
                 name="date"
@@ -225,23 +212,20 @@ export default function AddPage() {
               />
             </div>
 
-            {/* สรุปมูลค่า */}
-            {form.qty && form.price && (
+            {profit !== null && (
               <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm">
-                <p className="text-blue-600 font-medium">
-                  มูลค่าที่ลงทุน: ฿{(parseFloat(form.qty || "0") * parseFloat(form.price || "0")).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
+                <p className="text-blue-700 font-medium">
+                  มูลค่ารวม: ฿{parseFloat(form.total_value || "0").toLocaleString("th-TH", { minimumFractionDigits: 2 })}
                 </p>
               </div>
             )}
 
-            {/* Error */}
             {error && (
               <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                 {error}
               </p>
             )}
 
-            {/* Buttons */}
             <div className="flex gap-3 pt-1">
               <button
                 type="button"
@@ -255,7 +239,7 @@ export default function AddPage() {
                 disabled={loading}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 rounded-lg transition"
               >
-                {loading ? "กำลังบันทึก..." : "บันทึกการลงทุน"}
+                {loading ? "กำลังบันทึก..." : "บันทึก"}
               </button>
             </div>
 
