@@ -53,6 +53,7 @@ export default function AssetDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState<HistoryRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [chartRange, setChartRange] = useState<"1m" | "3m" | "6m" | "1y" | "all">("all");
 
   useEffect(() => {
     (async () => {
@@ -161,6 +162,22 @@ export default function AssetDetailPage() {
     }
   }
 
+  const filteredHistory = useMemo(() => {
+    if (chartRange === "all") return historyRows;
+    const days = { "1m": 30, "3m": 90, "6m": 180, "1y": 365 }[chartRange];
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    return historyRows.filter((r) => r.x >= cutoff);
+  }, [historyRows, chartRange]);
+
+  const filteredMarkers = useMemo(
+    () => chartMarkers.filter((m) => {
+      if (chartRange === "all") return true;
+      const days = { "1m": 30, "3m": 90, "6m": 180, "1y": 365 }[chartRange];
+      return m.x >= Date.now() - days * 24 * 60 * 60 * 1000;
+    }),
+    [chartMarkers, chartRange]
+  );
+
   const sortedHistory = useMemo(() => [...historyRows].reverse(), [historyRows]);
   const pagedHistory = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -253,8 +270,27 @@ export default function AssetDetailPage() {
               <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" />Snapshot</span>
             </div>
           </div>
-          {historyRows.length >= 2 ? (
-            <ValueChart rows={historyRows} markers={chartMarkers} />
+          <div className="flex items-center gap-1 mb-3">
+            {(["1m", "3m", "6m", "1y", "all"] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setChartRange(r)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition ${
+                  chartRange === r
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
+                }`}
+              >
+                {r === "all" ? "ทั้งหมด" : r.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          {filteredHistory.length >= 2 ? (
+            <ValueChart rows={filteredHistory} markers={filteredMarkers} />
+          ) : filteredHistory.length === 0 && historyRows.length >= 2 ? (
+            <div className="text-center py-12 text-sm text-gray-500">
+              ไม่มีข้อมูลในช่วงเวลานี้
+            </div>
           ) : (
             <div className="text-center py-12 text-sm text-gray-500">
               ต้องมีรายการอย่างน้อย 2 ครั้งเพื่อแสดงกราฟ
