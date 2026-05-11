@@ -42,10 +42,16 @@ function extractNav(item: Record<string, unknown>): number | null {
   return typeof v === "number" ? v : null;
 }
 
+const SEC_API_KEY = process.env.SEC_API_KEY ?? "";
+
+function secHeaders(): HeadersInit {
+  return SEC_API_KEY ? { "Ocp-Apim-Subscription-Key": SEC_API_KEY } : {};
+}
+
 async function fetchSecNavRange(abbr: string, startDate: string, endDate: string): Promise<number | null> {
   return getCached(`sec:${abbr}:${startDate}:${endDate}`, async () => {
     const url = `https://api.sec.or.th/FundFactsheet/fund/unitprice/daily?proj_abbr_name=${encodeURIComponent(abbr)}&start_date=${startDate}&end_date=${endDate}`;
-    const res = await fetch(url, { next: { revalidate: 0 } });
+    const res = await fetch(url, { headers: secHeaders(), next: { revalidate: 0 } });
     if (!res.ok) return null;
     const data = await res.json();
     const items: Record<string, unknown>[] = Array.isArray(data)
@@ -69,7 +75,7 @@ async function fetchSecHistoricalNav(abbr: string, dateISO: string): Promise<num
   const end = new Date(d.getTime() + 3 * 86400000).toISOString().split("T")[0];
   return getCached(`sec:${abbr}:hist:${dateISO}`, async () => {
     const url = `https://api.sec.or.th/FundFactsheet/fund/unitprice/daily?proj_abbr_name=${encodeURIComponent(abbr)}&start_date=${start}&end_date=${end}`;
-    const res = await fetch(url, { next: { revalidate: 0 } });
+    const res = await fetch(url, { headers: secHeaders(), next: { revalidate: 0 } });
     if (!res.ok) return null;
     const data = await res.json();
     const items: Record<string, unknown>[] = Array.isArray(data)
