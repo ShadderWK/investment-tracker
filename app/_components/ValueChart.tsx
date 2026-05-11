@@ -144,8 +144,12 @@ export function ValueChart({ rows, markers }: { rows: ChartRow[]; markers?: Char
 
         {xTickIdx.map((idx, i) => {
           const p = rows[idx];
+          const anchor =
+            i === 0 ? "start" :
+            i === xTickIdx.length - 1 ? "end" :
+            "middle";
           return (
-            <text key={`x-${i}`} x={sx(p.x)} y={H - 12} textAnchor="middle" fontSize="10" fill="#9ca3af">
+            <text key={`x-${i}`} x={sx(p.x)} y={H - 12} textAnchor={anchor} fontSize="10" fill="#9ca3af">
               {fmtDate(p.date)}
             </text>
           );
