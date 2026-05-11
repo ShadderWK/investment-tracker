@@ -1,8 +1,10 @@
 export type AssetSource =
   | { kind: "coingecko"; id: string }
+  | { kind: "sec_fund"; abbr: string }
   | { kind: "manual" };
 
 export const ASSET_SOURCES: Record<string, AssetSource> = {
+  // Crypto
   BTC: { kind: "coingecko", id: "bitcoin" },
   ETH: { kind: "coingecko", id: "ethereum" },
   SOL: { kind: "coingecko", id: "solana" },
@@ -11,6 +13,11 @@ export const ASSET_SOURCES: Record<string, AssetSource> = {
   XRP: { kind: "coingecko", id: "ripple" },
   DOGE: { kind: "coingecko", id: "dogecoin" },
   USDT: { kind: "coingecko", id: "tether" },
+  // Gold — 1 PAXG = 1 troy oz of gold, priced in THB
+  GOLD: { kind: "coingecko", id: "pax-gold" },
+  // Thai mutual funds via SEC Thailand Open API
+  "K-FIRMF": { kind: "sec_fund", abbr: "KFIRMF" },
+  "K-US500X-A(A)": { kind: "sec_fund", abbr: "KUS500XA" },
 };
 
 export function getAssetSource(symbol: string): AssetSource {

@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/log";
+import { isLive } from "@/lib/asset-sources";
+
+const UNITS_LABEL: Record<string, string> = {
+  fund: "หน่วยลงทุน", etf: "หน่วย", stock: "หุ้น", crypto: "เหรียญ", gold: "oz",
+};
 
 type AssetSymbol = {
   id: string;
@@ -26,6 +31,7 @@ export default function AddPage() {
     tx_type: "buy",
     amount: "",
     total_value: "",
+    units: "",
     date: new Date().toISOString().split("T")[0],
   });
 
@@ -97,6 +103,7 @@ export default function AddPage() {
       amount: parseFloat(form.amount),
       total_value: parseFloat(form.total_value),
       date: form.date,
+      ...(form.units !== "" ? { units: parseFloat(form.units) } : {}),
     });
 
     setLoading(false);
@@ -237,6 +244,25 @@ export default function AddPage() {
                 </div>
                 <p className="text-xs text-gray-500 mt-1">มูลค่าตลาดรวมของสินทรัพย์นี้หลังรายการนี้</p>
               </div>
+
+              {isLive(form.symbol) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                    {UNITS_LABEL[form.asset_type] || "หน่วย"}คงเหลือหลังรายการนี้ <span className="text-gray-600">(ไม่บังคับ)</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="units"
+                    value={form.units}
+                    onChange={handleChange}
+                    placeholder="0.0000"
+                    min="0"
+                    step="any"
+                    className="w-full px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">ใส่เพื่อให้ระบบคำนวณมูลค่า real-time ได้แม่นยำขึ้น</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">วันที่</label>
