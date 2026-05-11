@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/log";
+import { isLive } from "@/lib/asset-sources";
 import { ValueChart, type ChartMarker, type ChartRow } from "@/app/_components/ValueChart";
 import { Pagination } from "@/app/_components/Pagination";
 
@@ -14,6 +15,7 @@ type Transaction = {
   tx_type: string;
   amount: number;
   total_value: number;
+  units: number | null;
   date: string;
 };
 
@@ -29,8 +31,16 @@ const TYPE_COLOR: Record<string, string> = {
   fund: "bg-indigo-900/50 text-indigo-300",
 };
 
+const UNITS_LABEL: Record<string, string> = {
+  fund: "หน่วยลงทุน", etf: "หน่วย", stock: "หุ้น", crypto: "เหรียญ", gold: "oz",
+};
+
 function fmt(n: number) {
   return n.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtUnits(n: number) {
+  return n.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 6 });
 }
 
 function fmtDate(s: string) {
@@ -38,7 +48,7 @@ function fmtDate(s: string) {
   return d.toLocaleDateString("th-TH", { year: "numeric", month: "short", day: "numeric" });
 }
 
-type HistoryRow = ChartRow & { id: string; amount: number; txType: string };
+type HistoryRow = ChartRow & { id: string; amount: number; txType: string; units: number | null };
 
 export default function AssetDetailPage() {
   const router = useRouter();
@@ -55,9 +65,14 @@ export default function AssetDetailPage() {
   const [deleteError, setDeleteError] = useState("");
   const [chartRange, setChartRange] = useState<"1m" | "3m" | "6m" | "1y" | "all">("all");
   const [editTx, setEditTx] = useState<Transaction | null>(null);
-  const [editForm, setEditForm] = useState({ tx_type: "buy", amount: "", total_value: "", date: "" });
+  const [editForm, setEditForm] = useState({ tx_type: "buy", amount: "", total_value: "", date: "", units: "" });
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState("");
+  const [liveValue, setLiveValue] = useState<number | null>(null);
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [liveFetching, setLiveFetching] = useState(false);
+  const [liveError, setLiveError] = useState("");
+  const [liveFetchedAt, setLiveFetchedAt] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -80,9 +95,45 @@ export default function AssetDetailPage() {
         .order("date", { ascending: true });
 
       const list = (data || []) as Transaction[];
-      if (list.length === 0) setNotFound(true);
+      if (list.length === 0) { setNotFound(true); setLoading(false); return; }
       setTxs(list);
       setLoading(false);
+
+      // Auto-fetch live price on load
+      if (isLive(symbol)) {
+        const lastTx = list[list.length - 1];
+        const latestUnits = list.reduce<{ units: number | null; date: string }>(
+          (acc, t) => (t.units != null && t.date >= acc.date ? { units: t.units, date: t.date } : acc),
+          { units: null, date: "" }
+        ).units;
+        setLiveFetching(true);
+        try {
+          const res = await fetch("/api/prices", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              items: [{
+                symbol,
+                snapshotDate: lastTx.date,
+                snapshotValue: Number(lastTx.total_value),
+                ...(latestUnits != null ? { units: latestUnits } : {}),
+              }],
+            }),
+          });
+          if (res.ok) {
+            const json = await res.json();
+            const p = json.prices?.[0];
+            if (p?.liveValue != null) setLiveValue(p.liveValue);
+            if (p?.currentPrice != null) setCurrentPrice(p.currentPrice);
+            if (p?.error) setLiveError(p.error);
+            setLiveFetchedAt(json.fetched_at);
+          }
+        } catch {
+          // silently ignore auto-fetch failure
+        } finally {
+          setLiveFetching(false);
+        }
+      }
     })();
   }, [symbol, router]);
 
@@ -102,8 +153,55 @@ export default function AssetDetailPage() {
     });
     const pl = lastValue - totalCost;
     const plPct = totalCost > 0 ? (pl / totalCost) * 100 : 0;
-    return { totalCost, currentValue: lastValue, pl, plPct, assetType, txCount: txs.length };
+    return { totalCost, currentValue: lastValue, pl, plPct, assetType, txCount: txs.length, lastDate };
   }, [txs]);
+
+  const totalUnits = useMemo(() => {
+    let latest: { units: number | null; date: string } = { units: null, date: "" };
+    txs.forEach((t) => {
+      if (t.units != null && t.date >= latest.date) {
+        latest = { units: t.units, date: t.date };
+      }
+    });
+    return latest.units;
+  }, [txs]);
+
+  const lastSnapshot = useMemo(() => txs.length > 0 ? txs[txs.length - 1] : null, [txs]);
+
+  async function fetchLivePrice() {
+    if (!lastSnapshot || !isLive(symbol)) return;
+    setLiveFetching(true);
+    setLiveError("");
+    try {
+      const res = await fetch("/api/prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{
+            symbol,
+            snapshotDate: lastSnapshot.date,
+            snapshotValue: Number(lastSnapshot.total_value),
+            ...(totalUnits != null ? { units: totalUnits } : {}),
+          }],
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const json = await res.json();
+      const p = json.prices?.[0];
+      if (p?.liveValue != null) setLiveValue(p.liveValue);
+      if (p?.currentPrice != null) setCurrentPrice(p.currentPrice);
+      if (p?.error) setLiveError(p.error);
+      setLiveFetchedAt(json.fetched_at);
+    } catch (e) {
+      setLiveError(e instanceof Error ? e.message : "ไม่สามารถดึงราคาได้");
+    } finally {
+      setLiveFetching(false);
+    }
+  }
+
+  const displayValue = liveValue ?? summary.currentValue;
+  const displayPL = displayValue - summary.totalCost;
+  const displayPLPct = summary.totalCost > 0 ? (displayPL / summary.totalCost) * 100 : 0;
 
   const historyRows: HistoryRow[] = useMemo(() => {
     let cum = 0;
@@ -118,6 +216,7 @@ export default function AssetDetailPage() {
         totalValue: Number(t.total_value),
         amount: Number(t.amount),
         txType: t.tx_type,
+        units: t.units,
       };
     });
   }, [txs]);
@@ -147,6 +246,7 @@ export default function AssetDetailPage() {
       amount: String(tx.amount),
       total_value: String(tx.total_value),
       date: tx.date,
+      units: tx.units != null ? String(tx.units) : "",
     });
     setEditError("");
   }
@@ -159,6 +259,7 @@ export default function AssetDetailPage() {
     if (!editForm.date) { setEditError("กรุณาเลือกวันที่"); return; }
     setEditing(true);
     setEditError("");
+    const unitsVal = editForm.units !== "" ? parseFloat(editForm.units) : null;
     const { error } = await supabase
       .from("transactions")
       .update({
@@ -166,6 +267,7 @@ export default function AssetDetailPage() {
         amount: parseFloat(editForm.amount),
         total_value: parseFloat(editForm.total_value),
         date: editForm.date,
+        units: unitsVal,
       })
       .eq("id", editTx.id);
     if (error) {
@@ -177,7 +279,7 @@ export default function AssetDetailPage() {
       prev
         .map((t) =>
           t.id === editTx.id
-            ? { ...t, tx_type: editForm.tx_type, amount: parseFloat(editForm.amount), total_value: parseFloat(editForm.total_value), date: editForm.date }
+            ? { ...t, tx_type: editForm.tx_type, amount: parseFloat(editForm.amount), total_value: parseFloat(editForm.total_value), date: editForm.date, units: unitsVal }
             : t
         )
         .sort((a, b) => a.date.localeCompare(b.date))
@@ -263,6 +365,8 @@ export default function AssetDetailPage() {
     );
   }
 
+  const unitsLabel = UNITS_LABEL[summary.assetType] || "หน่วย";
+
   return (
     <main className="min-h-screen bg-gray-950 p-6">
       <div className="max-w-5xl mx-auto">
@@ -283,6 +387,12 @@ export default function AssetDetailPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-semibold text-gray-100">{symbol}</h1>
+                {liveValue != null && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/50 text-green-300 font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    LIVE
+                  </span>
+                )}
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLOR[summary.assetType] || "bg-gray-800 text-gray-300"}`}>
                   {TYPE_LABEL[summary.assetType] || summary.assetType}
                 </span>
@@ -292,16 +402,60 @@ export default function AssetDetailPage() {
           </div>
         </div>
 
+        {/* Live price bar */}
+        {isLive(symbol) && (
+          <div className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 mb-4 gap-3">
+            <div className="flex items-center gap-2 min-w-0 flex-wrap">
+              {liveFetching ? (
+                <span className="text-xs text-gray-500">กำลังดึงราคา...</span>
+              ) : liveValue != null ? (
+                <>
+                  <span className="text-xs text-green-300 font-medium">ราคาปัจจุบัน</span>
+                  {currentPrice != null && (
+                    <span className="text-xs text-gray-300 font-medium">
+                      ฿{fmt(currentPrice)}<span className="text-gray-500">/{unitsLabel}</span>
+                    </span>
+                  )}
+                  {totalUnits != null && (
+                    <span className="text-xs text-gray-500">
+                      · ถือครอง {fmtUnits(totalUnits)} {unitsLabel}
+                    </span>
+                  )}
+                </>
+              ) : liveError ? (
+                <span className="text-xs text-amber-400">{liveError}</span>
+              ) : (
+                <span className="text-xs text-gray-500">กดดึงราคาเพื่ออัปเดต</span>
+              )}
+              {liveFetchedAt && !liveFetching && (
+                <span className="text-xs text-gray-600">
+                  · {new Date(liveFetchedAt).toLocaleTimeString("th-TH")}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={fetchLivePrice}
+              disabled={liveFetching}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-gray-700 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 disabled:opacity-50 transition shrink-0"
+            >
+              <svg className={`w-3 h-3 ${liveFetching ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              ดึงราคา
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
             { label: "ต้นทุนรวม", value: `฿${fmt(summary.totalCost)}`, color: "text-gray-50" },
-            { label: "มูลค่าปัจจุบัน", value: `฿${fmt(summary.currentValue)}`, color: "text-gray-50" },
+            { label: liveValue != null ? "มูลค่า (LIVE)" : "มูลค่าปัจจุบัน", value: `฿${fmt(displayValue)}`, color: "text-gray-50" },
             { label: "กำไร / ขาดทุน",
-              value: `${summary.pl >= 0 ? "+" : ""}฿${fmt(summary.pl)}`,
-              color: summary.pl >= 0 ? "text-green-400" : "text-red-400" },
+              value: `${displayPL >= 0 ? "+" : ""}฿${fmt(displayPL)}`,
+              color: displayPL >= 0 ? "text-green-400" : "text-red-400" },
             { label: "ผลตอบแทน",
-              value: `${summary.plPct >= 0 ? "+" : ""}${summary.plPct.toFixed(2)}%`,
-              color: summary.plPct >= 0 ? "text-green-400" : "text-red-400" },
+              value: `${displayPLPct >= 0 ? "+" : ""}${displayPLPct.toFixed(2)}%`,
+              color: displayPLPct >= 0 ? "text-green-400" : "text-red-400" },
           ].map((m) => (
             <div key={m.label} className="bg-gray-900 rounded-xl border border-gray-700 p-4">
               <p className="text-xs text-gray-400 mb-1">{m.label}</p>
@@ -361,6 +515,7 @@ export default function AssetDetailPage() {
                 <tr className="bg-gray-800 text-xs text-gray-400">
                   <th className="text-left px-5 py-3 font-medium">วันที่</th>
                   <th className="text-left px-5 py-3 font-medium">รายการ</th>
+                  <th className="text-right px-4 py-3 font-medium">หน่วยคงเหลือ</th>
                   <th className="text-right px-5 py-3 font-medium">จำนวนเข้าซื้อ</th>
                   <th className="text-right px-5 py-3 font-medium">ต้นทุนสะสม</th>
                   <th className="text-right px-5 py-3 font-medium">มูลค่ารวม</th>
@@ -385,6 +540,9 @@ export default function AssetDetailPage() {
                         }`}>
                           {isSnapshot ? "Snapshot" : isSell ? "ขาย" : "ซื้อ"}
                         </span>
+                      </td>
+                      <td className="px-4 py-4 text-right text-xs text-gray-500">
+                        {r.units != null ? fmtUnits(r.units) : "—"}
                       </td>
                       <td className="px-5 py-4 text-right text-gray-400">
                         {r.amount === 0 ? "—" : `${isSell ? "-" : "+"}฿${fmt(r.amount)}`}
@@ -490,6 +648,22 @@ export default function AssetDetailPage() {
                   />
                 </div>
               </div>
+              {isLive(symbol) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                    {unitsLabel}คงเหลือ <span className="text-gray-600">(ไม่บังคับ)</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={editForm.units}
+                    onChange={(e) => setEditForm({ ...editForm, units: e.target.value })}
+                    placeholder="0.0000"
+                    min="0"
+                    step="any"
+                    className="w-full px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">วันที่</label>
                 <input

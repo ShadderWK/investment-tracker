@@ -18,6 +18,7 @@ type Transaction = {
   tx_type: string;
   amount: number;
   total_value: number;
+  units: number | null;
   date: string;
 };
 
@@ -30,6 +31,7 @@ type Asset = {
   plPct: number;
   txCount: number;
   lastDate: string;
+  latestUnits: number | null;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -49,17 +51,15 @@ function fmt(n: number) {
 }
 
 function computeAssets(transactions: Transaction[]): Asset[] {
-  const map: Record<string, Asset> = {};
+  const assetMap: Record<string, { totalCost: number; currentValue: number; txCount: number; lastDate: string; assetType: string }> = {};
+  const unitsMap: Record<string, { units: number; date: string }> = {};
+
   transactions.forEach((tx) => {
     const sym = tx.symbol;
-    if (!map[sym]) {
-      map[sym] = {
-        symbol: sym, assetType: tx.asset_type,
-        totalCost: 0, currentValue: 0, pl: 0, plPct: 0, txCount: 0,
-        lastDate: "",
-      };
+    if (!assetMap[sym]) {
+      assetMap[sym] = { totalCost: 0, currentValue: 0, txCount: 0, lastDate: "", assetType: tx.asset_type };
     }
-    const a = map[sym];
+    const a = assetMap[sym];
     const delta = tx.tx_type === "sell" ? -Number(tx.amount) : Number(tx.amount);
     a.totalCost += delta;
     a.txCount += 1;
@@ -67,12 +67,25 @@ function computeAssets(transactions: Transaction[]): Asset[] {
       a.currentValue = Number(tx.total_value);
       a.lastDate = tx.date;
     }
+    if (tx.units != null && tx.date >= (unitsMap[sym]?.date ?? "")) {
+      unitsMap[sym] = { units: tx.units, date: tx.date };
+    }
   });
-  return Object.values(map).map((a) => ({
-    ...a,
-    pl: a.currentValue - a.totalCost,
-    plPct: a.totalCost > 0 ? ((a.currentValue - a.totalCost) / a.totalCost) * 100 : 0,
-  }));
+
+  return Object.entries(assetMap).map(([sym, a]) => {
+    const pl = a.currentValue - a.totalCost;
+    return {
+      symbol: sym,
+      assetType: a.assetType,
+      totalCost: a.totalCost,
+      currentValue: a.currentValue,
+      pl,
+      plPct: a.totalCost > 0 ? (pl / a.totalCost) * 100 : 0,
+      txCount: a.txCount,
+      lastDate: a.lastDate,
+      latestUnits: unitsMap[sym]?.units ?? null,
+    };
+  });
 }
 
 function computePortfolioSeries(transactions: Transaction[]): ChartRow[] {
@@ -209,9 +222,14 @@ export default function DashboardPage() {
     try {
       const items = baseAssets
         .filter((a) => isLive(a.symbol) && a.lastDate)
-        .map((a) => ({ symbol: a.symbol, snapshotDate: a.lastDate, snapshotValue: a.currentValue }));
+        .map((a) => ({
+          symbol: a.symbol,
+          snapshotDate: a.lastDate,
+          snapshotValue: a.currentValue,
+          ...(a.latestUnits != null ? { units: a.latestUnits } : {}),
+        }));
       if (items.length === 0) {
-        setLivePriceError("ไม่มี asset ที่รองรับ live price (รองรับ: BTC, ETH, SOL, BNB, ADA, XRP, DOGE, USDT)");
+        setLivePriceError("ไม่มีสินทรัพย์ที่รองรับ live price ในพอร์ตนี้");
         return;
       }
       const res = await fetch("/api/prices", {
