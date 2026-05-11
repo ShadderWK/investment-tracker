@@ -37,53 +37,43 @@ async function fetchCoingeckoHistorical(id: string, dateISO: string): Promise<nu
   });
 }
 
-function extractNav(item: Record<string, unknown>): number | null {
-  const v = item?.nav ?? item?.value ?? item?.unitprice ?? item?.nav_value;
-  return typeof v === "number" ? v : null;
-}
-
 const SEC_API_KEY = process.env.SEC_API_KEY ?? "";
 
 function secHeaders(): HeadersInit {
   return SEC_API_KEY ? { "Ocp-Apim-Subscription-Key": SEC_API_KEY } : {};
 }
 
-async function fetchSecNavRange(abbr: string, startDate: string, endDate: string): Promise<number | null> {
-  return getCached(`sec:${abbr}:${startDate}:${endDate}`, async () => {
-    const url = `https://api.sec.or.th/FundFactsheet/fund/unitprice/daily?proj_abbr_name=${encodeURIComponent(abbr)}&start_date=${startDate}&end_date=${endDate}`;
+function extractLastVal(item: Record<string, unknown>): number | null {
+  const v = item?.last_val ?? item?.nav ?? item?.value ?? item?.unitprice;
+  return typeof v === "number" ? v : null;
+}
+
+async function fetchSecCurrentNav(projId: string): Promise<number | null> {
+  const today = new Date().toISOString().split("T")[0];
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  return getCached(`sec:v2:current:${projId}`, async () => {
+    const url = `https://api.sec.or.th/v2/fund/daily-info/nav?proj_id=${encodeURIComponent(projId)}&start_nav_date=${weekAgo}&end_nav_date=${today}`;
     const res = await fetch(url, { headers: secHeaders(), next: { revalidate: 0 } });
     if (!res.ok) return null;
     const data = await res.json();
-    const items: Record<string, unknown>[] = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.data) ? data.data : [];
+    const items: Record<string, unknown>[] = Array.isArray(data?.items) ? data.items : [];
     if (items.length === 0) return null;
-    return extractNav(items[items.length - 1]);
+    return extractLastVal(items[items.length - 1]);
   });
 }
 
-async function fetchSecCurrentNav(abbr: string): Promise<number | null> {
-  const today = new Date().toISOString().split("T")[0];
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  return fetchSecNavRange(abbr, weekAgo, today);
-}
-
-async function fetchSecHistoricalNav(abbr: string, dateISO: string): Promise<number | null> {
-  // Widen ±3 days to handle weekends/holidays
+async function fetchSecHistoricalNav(projId: string, dateISO: string): Promise<number | null> {
   const d = new Date(dateISO);
   const start = new Date(d.getTime() - 3 * 86400000).toISOString().split("T")[0];
   const end = new Date(d.getTime() + 3 * 86400000).toISOString().split("T")[0];
-  return getCached(`sec:${abbr}:hist:${dateISO}`, async () => {
-    const url = `https://api.sec.or.th/FundFactsheet/fund/unitprice/daily?proj_abbr_name=${encodeURIComponent(abbr)}&start_date=${start}&end_date=${end}`;
+  return getCached(`sec:v2:hist:${projId}:${dateISO}`, async () => {
+    const url = `https://api.sec.or.th/v2/fund/daily-info/nav?proj_id=${encodeURIComponent(projId)}&start_nav_date=${start}&end_nav_date=${end}`;
     const res = await fetch(url, { headers: secHeaders(), next: { revalidate: 0 } });
     if (!res.ok) return null;
     const data = await res.json();
-    const items: Record<string, unknown>[] = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.data) ? data.data : [];
+    const items: Record<string, unknown>[] = Array.isArray(data?.items) ? data.items : [];
     if (items.length === 0) return null;
-    // Pick the middle item (closest to the target date in the range)
-    return extractNav(items[Math.floor(items.length / 2)]);
+    return extractLastVal(items[Math.floor(items.length / 2)]);
   });
 }
 
@@ -136,14 +126,14 @@ export async function POST(req: Request) {
         }
 
         if (source.kind === "sec_fund") {
-          const currentNav = await fetchSecCurrentNav(source.abbr);
+          const currentNav = await fetchSecCurrentNav(source.projId);
           if (currentNav == null) {
             return { symbol: item.symbol, source: "sec_fund", liveValue: null, currentPrice: null, ratio: null, error: "ดึง NAV ไม่ได้" };
           }
           if (item.units != null) {
             return { symbol: item.symbol, source: "sec_fund", liveValue: item.units * currentNav, currentPrice: currentNav, ratio: null, error: null };
           }
-          const historicalNav = await fetchSecHistoricalNav(source.abbr, item.snapshotDate);
+          const historicalNav = await fetchSecHistoricalNav(source.projId, item.snapshotDate);
           if (historicalNav == null || historicalNav === 0) {
             return { symbol: item.symbol, source: "sec_fund", liveValue: null, currentPrice: currentNav, ratio: null, error: "ดึง NAV ย้อนหลังไม่ได้" };
           }
