@@ -136,7 +136,7 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [chartView, setChartView] = useState<"timeline" | "allocation">("timeline");
-  const [chartRange, setChartRange] = useState<"1m" | "3m" | "6m" | "1y" | "all">("all");
+  const [chartRange, setChartRange] = useState<"1d" | "1w" | "1m" | "3m" | "6m" | "1y" | "all">("all");
   const [admin, setAdmin] = useState(false);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [livePriceError, setLivePriceError] = useState("");
@@ -310,7 +310,7 @@ export default function DashboardPage() {
   }, [historyRows, transactions]);
   const filteredSeries = useMemo(() => {
     if (chartRange === "all") return series;
-    const days = { "1m": 30, "3m": 90, "6m": 180, "1y": 365 }[chartRange];
+    const days = { "1d": 1, "1w": 7, "1m": 30, "3m": 90, "6m": 180, "1y": 365 }[chartRange];
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
     return series.filter((r) => r.x >= cutoff);
   }, [series, chartRange]);
@@ -457,7 +457,7 @@ export default function DashboardPage() {
             </div>
             {chartView === "timeline" && (
               <div className="flex items-center gap-1 mb-3 flex-wrap">
-                {(["1m", "3m", "6m", "1y", "all"] as const).map((r) => (
+                {(["1d", "1w", "1m", "3m", "6m", "1y", "all"] as const).map((r) => (
                   <button
                     key={r}
                     onClick={() => setChartRange(r)}
@@ -467,7 +467,7 @@ export default function DashboardPage() {
                         : "text-gray-400 hover:text-gray-200 hover:bg-gray-800"
                     }`}
                   >
-                    {r === "all" ? "ทั้งหมด" : r.toUpperCase()}
+                    {{ "1d": "1D", "1w": "1W", "1m": "1M", "3m": "3M", "6m": "6M", "1y": "1Y", "all": "ทั้งหมด" }[r]}
                   </button>
                 ))}
                 {historyLoading && (
