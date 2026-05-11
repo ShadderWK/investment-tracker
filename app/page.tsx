@@ -151,15 +151,6 @@ export default function DashboardPage() {
     checkSessionAndLoad();
   }, []);
 
-  // Auto-fetch live prices once after initial load completes
-  useEffect(() => {
-    if (!loading && baseAssets.length > 0 && !autoFetchedPrices.current) {
-      autoFetchedPrices.current = true;
-      refreshPrices();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, baseAssets]);
-
   async function checkSessionAndLoad() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { router.replace("/login"); return; }
@@ -264,6 +255,15 @@ export default function DashboardPage() {
   }
 
   const baseAssets = useMemo(() => computeAssets(transactions), [transactions]);
+
+  // Auto-fetch live prices once after initial load completes
+  useEffect(() => {
+    if (!loading && baseAssets.length > 0 && !autoFetchedPrices.current) {
+      autoFetchedPrices.current = true;
+      refreshPrices();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, baseAssets]);
   const assets = useMemo(
     () => baseAssets.map((a) => {
       const live = livePrices[a.symbol];
