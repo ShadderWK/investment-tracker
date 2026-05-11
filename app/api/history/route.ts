@@ -163,19 +163,36 @@ export async function POST(req: Request) {
     const hasUnits = txs.some((t) => t.units != null);
 
     if (src.kind !== "manual" && m && m.size > 0 && hasUnits) {
-      // Primary path: cumulative units × daily price
+      // Hybrid approach:
+      //   • Before the first transaction that has units → snapshot (total_value carry-forward)
+      //   • From that transaction onward → cumulative units × daily price
+      // This preserves historical chart shape for old transactions that weren't recorded with units.
       const prices = forwardFill(dates, m);
+      const firstUnitsDate = txs
+        .filter((t) => t.units != null)
+        .map((t) => t.date)
+        .sort()[0] ?? "";
+
       let cumUnits = 0;
+      let lastSnapshotV = 0;
       let ti = 0;
+
       for (let i = 0; i < N; i++) {
-        while (ti < txs.length && txs[ti].date <= dates[i]) {
+        const d = dates[i];
+        while (ti < txs.length && txs[ti].date <= d) {
           const t = txs[ti++];
-          if (t.units != null) {
-            cumUnits += t.tx_type === "sell" ? -t.units : t.units;
-          }
+          if (t.units != null) cumUnits += t.tx_type === "sell" ? -t.units : t.units;
+          if (t.total_value > 0) lastSnapshotV = t.total_value;
         }
-        const p = prices[i];
-        if (p != null && cumUnits > 0) value[i] += cumUnits * p;
+
+        if (d < firstUnitsDate) {
+          // Pre-units period: use last known total_value snapshot
+          value[i] += lastSnapshotV;
+        } else {
+          // Units available: use cumulative units × live price
+          const p = prices[i];
+          if (p != null && cumUnits > 0) value[i] += cumUnits * p;
+        }
       }
     } else {
       // Fallback: carry forward last known total_value (manual assets, or live without units)
