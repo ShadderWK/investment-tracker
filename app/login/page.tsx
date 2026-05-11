@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/log";
@@ -13,7 +13,17 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const savedRemember = localStorage.getItem("remember_me") === "true";
+    if (savedRemember) {
+      setEmail(localStorage.getItem("saved_email") ?? "");
+      setPassword(localStorage.getItem("saved_password") ?? "");
+      setRememberMe(true);
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +62,15 @@ export default function LoginPage() {
       } else {
         await logActivity("login");
         localStorage.setItem("login_time", Date.now().toString());
+        if (rememberMe) {
+          localStorage.setItem("saved_email", email);
+          localStorage.setItem("saved_password", password);
+          localStorage.setItem("remember_me", "true");
+        } else {
+          localStorage.removeItem("saved_email");
+          localStorage.removeItem("saved_password");
+          localStorage.removeItem("remember_me");
+        }
         router.push("/");
         router.refresh();
       }
@@ -114,6 +133,18 @@ export default function LoginPage() {
                 className="w-full px-3 py-2.5 text-sm text-gray-100 placeholder-gray-500 border border-gray-600 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
+
+            {!isRegister && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 accent-blue-500"
+                />
+                <span className="text-xs text-gray-400">จำอีเมลและรหัสผ่าน</span>
+              </label>
+            )}
 
             {error && (
               <p className="text-xs text-red-400 bg-red-950 border border-red-900 rounded-lg px-3 py-2">
