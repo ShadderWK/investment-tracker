@@ -142,6 +142,8 @@ export default function DashboardPage() {
   const [livePriceError, setLivePriceError] = useState("");
   const [refreshingPrices, setRefreshingPrices] = useState(false);
   const [pricesFetchedAt, setPricesFetchedAt] = useState<string | null>(null);
+  const [historyRows, setHistoryRows] = useState<ChartRow[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const SESSION_DURATION = 60 * 60 * 1000;
 
   useEffect(() => {
@@ -191,7 +193,55 @@ export default function DashboardPage() {
       .eq("portfolio_id", portfolioId)
       .order("date", { ascending: true });
 
-    if (data) setTransactions(data as Transaction[]);
+    if (data) {
+      const txList = data as Transaction[];
+      setTransactions(txList);
+      fetchHistory(txList); // non-blocking — updates chart when daily data arrives
+    }
+  }
+
+  async function fetchHistory(txList: Transaction[]) {
+    if (txList.length === 0) { setHistoryRows([]); return; }
+    setHistoryLoading(true);
+    try {
+      // Group transactions by symbol
+      const bySymbol: Record<string, { symbol: string; transactions: unknown[] }> = {};
+      txList.forEach((tx) => {
+        if (!bySymbol[tx.symbol]) bySymbol[tx.symbol] = { symbol: tx.symbol, transactions: [] };
+        bySymbol[tx.symbol].transactions.push({
+          date: tx.date,
+          units: tx.units,
+          tx_type: tx.tx_type,
+          amount: tx.amount,
+          total_value: tx.total_value,
+        });
+      });
+      const sorted = [...txList].sort((a, b) => a.date.localeCompare(b.date));
+      const startDate = sorted[0].date;
+      const endDate = new Date().toISOString().split("T")[0];
+
+      const res = await fetch("/api/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assets: Object.values(bySymbol), startDate, endDate }),
+      });
+      if (!res.ok) return; // silently fall back to sparse chart
+
+      const data = await res.json();
+      const rows: ChartRow[] = (data.dates as string[]).map((date: string, i: number) => ({
+        x: new Date(date).getTime(),
+        date,
+        cumulativeCost: (data.totalCost as number[])[i],
+        totalValue: (data.totalValue as number[])[i],
+      }));
+      // Trim leading all-zero rows (before first transaction takes effect)
+      const first = rows.findIndex((r) => r.totalValue > 0 || r.cumulativeCost > 0);
+      setHistoryRows(first >= 0 ? rows.slice(first) : rows);
+    } catch {
+      // silently ignore — sparse chart remains as fallback
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
   async function handleLogout() {
@@ -254,7 +304,10 @@ export default function DashboardPage() {
       setRefreshingPrices(false);
     }
   }
-  const series = useMemo(() => computePortfolioSeries(transactions), [transactions]);
+  const series = useMemo(() => {
+    if (historyRows && historyRows.length > 0) return historyRows;
+    return computePortfolioSeries(transactions);
+  }, [historyRows, transactions]);
   const filteredSeries = useMemo(() => {
     if (chartRange === "all") return series;
     const days = { "1m": 30, "3m": 90, "6m": 180, "1y": 365 }[chartRange];
@@ -403,7 +456,7 @@ export default function DashboardPage() {
               </div>
             </div>
             {chartView === "timeline" && (
-              <div className="flex items-center gap-1 mb-3">
+              <div className="flex items-center gap-1 mb-3 flex-wrap">
                 {(["1m", "3m", "6m", "1y", "all"] as const).map((r) => (
                   <button
                     key={r}
@@ -417,6 +470,17 @@ export default function DashboardPage() {
                     {r === "all" ? "ทั้งหมด" : r.toUpperCase()}
                   </button>
                 ))}
+                {historyLoading && (
+                  <span className="flex items-center gap-1 text-xs text-gray-500 ml-2">
+                    <svg className="w-3 h-3 animate-spin shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    กำลังโหลดกราฟรายวัน...
+                  </span>
+                )}
+                {!historyLoading && historyRows && historyRows.length > 0 && (
+                  <span className="text-[10px] text-gray-600 ml-2">รายวัน</span>
+                )}
               </div>
             )}
             {chartView === "timeline" ? (
