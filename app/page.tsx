@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -144,11 +144,21 @@ export default function DashboardPage() {
   const [pricesFetchedAt, setPricesFetchedAt] = useState<string | null>(null);
   const [historyRows, setHistoryRows] = useState<ChartRow[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const autoFetchedPrices = useRef(false);
   const SESSION_DURATION = 60 * 60 * 1000;
 
   useEffect(() => {
     checkSessionAndLoad();
   }, []);
+
+  // Auto-fetch live prices once after initial load completes
+  useEffect(() => {
+    if (!loading && baseAssets.length > 0 && !autoFetchedPrices.current) {
+      autoFetchedPrices.current = true;
+      refreshPrices();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, baseAssets]);
 
   async function checkSessionAndLoad() {
     const { data: { session } } = await supabase.auth.getSession();
