@@ -370,9 +370,13 @@ export default function DashboardPage() {
               <p className="text-sm font-medium text-gray-100">{userName}</p>
               <p className="text-xs text-gray-500">{userEmail}</p>
             </div>
-            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
+            <button
+              onClick={() => router.push("/profile")}
+              title="จัดการบัญชี"
+              className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold hover:bg-blue-500 transition"
+            >
               {userName.slice(0, 1).toUpperCase()}
-            </div>
+            </button>
             {admin && (
               <Link
                 href="/admin"
