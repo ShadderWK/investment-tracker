@@ -52,7 +52,8 @@ function fmt(n: number) {
 
 function computeAssets(transactions: Transaction[]): Asset[] {
   const assetMap: Record<string, { totalCost: number; currentValue: number; txCount: number; lastDate: string; assetType: string }> = {};
-  const unitsMap: Record<string, { units: number; date: string }> = {};
+  const unitsSumMap: Record<string, number> = {};
+  const hasUnitsMap: Record<string, boolean> = {};
 
   transactions.forEach((tx) => {
     const sym = tx.symbol;
@@ -67,8 +68,10 @@ function computeAssets(transactions: Transaction[]): Asset[] {
       a.currentValue = Number(tx.total_value);
       a.lastDate = tx.date;
     }
-    if (tx.units != null && tx.date >= (unitsMap[sym]?.date ?? "")) {
-      unitsMap[sym] = { units: tx.units, date: tx.date };
+    if (tx.units != null) {
+      hasUnitsMap[sym] = true;
+      const unitDelta = tx.tx_type === "sell" ? -tx.units : tx.units;
+      unitsSumMap[sym] = (unitsSumMap[sym] ?? 0) + unitDelta;
     }
   });
 
@@ -83,7 +86,7 @@ function computeAssets(transactions: Transaction[]): Asset[] {
       plPct: a.totalCost > 0 ? (pl / a.totalCost) * 100 : 0,
       txCount: a.txCount,
       lastDate: a.lastDate,
-      latestUnits: unitsMap[sym]?.units ?? null,
+      latestUnits: hasUnitsMap[sym] ? unitsSumMap[sym] : null,
     };
   });
 }

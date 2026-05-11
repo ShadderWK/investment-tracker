@@ -102,10 +102,14 @@ export default function AssetDetailPage() {
       // Auto-fetch live price on load
       if (isLive(symbol)) {
         const lastTx = list[list.length - 1];
-        const latestUnits = list.reduce<{ units: number | null; date: string }>(
-          (acc, t) => (t.units != null && t.date >= acc.date ? { units: t.units, date: t.date } : acc),
-          { units: null, date: "" }
-        ).units;
+        let unitsSum: number | null = null;
+        list.forEach((t) => {
+          if (t.units != null) {
+            const delta = t.tx_type === "sell" ? -t.units : t.units;
+            unitsSum = (unitsSum ?? 0) + delta;
+          }
+        });
+        const latestUnits = unitsSum;
         setLiveFetching(true);
         try {
           const res = await fetch("/api/prices", {
@@ -157,13 +161,14 @@ export default function AssetDetailPage() {
   }, [txs]);
 
   const totalUnits = useMemo(() => {
-    let latest: { units: number | null; date: string } = { units: null, date: "" };
+    let sum: number | null = null;
     txs.forEach((t) => {
-      if (t.units != null && t.date >= latest.date) {
-        latest = { units: t.units, date: t.date };
+      if (t.units != null) {
+        const delta = t.tx_type === "sell" ? -t.units : t.units;
+        sum = (sum ?? 0) + delta;
       }
     });
-    return latest.units;
+    return sum;
   }, [txs]);
 
   const lastSnapshot = useMemo(() => txs.length > 0 ? txs[txs.length - 1] : null, [txs]);
@@ -515,7 +520,7 @@ export default function AssetDetailPage() {
                 <tr className="bg-gray-800 text-xs text-gray-400">
                   <th className="text-left px-5 py-3 font-medium">วันที่</th>
                   <th className="text-left px-5 py-3 font-medium">รายการ</th>
-                  <th className="text-right px-4 py-3 font-medium">หน่วยคงเหลือ</th>
+                  <th className="text-right px-4 py-3 font-medium">หน่วยที่ซื้อ/ขาย</th>
                   <th className="text-right px-5 py-3 font-medium">จำนวนเข้าซื้อ</th>
                   <th className="text-right px-5 py-3 font-medium">ต้นทุนสะสม</th>
                   <th className="text-right px-5 py-3 font-medium">มูลค่ารวม</th>
@@ -651,7 +656,7 @@ export default function AssetDetailPage() {
               {isLive(symbol) && (
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1.5">
-                    {unitsLabel}คงเหลือ <span className="text-gray-600">(ไม่บังคับ)</span>
+                    {unitsLabel}ที่ซื้อ/ขายในรายการนี้ <span className="text-gray-600">(ไม่บังคับ)</span>
                   </label>
                   <input
                     type="number"
