@@ -147,7 +147,7 @@ export default function AddPage() {
   const selectedSymbol = symbols.find((s) => s.symbol === form.symbol);
 
   return (
-    <main className="min-h-screen bg-gray-950 p-6">
+    <main className="min-h-screen bg-gray-950 p-4 sm:p-6">
       <div className="max-w-lg mx-auto">
 
         <div className="flex items-center gap-3 mb-6">

@@ -373,7 +373,7 @@ export default function AssetDetailPage() {
   const unitsLabel = UNITS_LABEL[summary.assetType] || "หน่วย";
 
   return (
-    <main className="min-h-screen bg-gray-950 p-6">
+    <main className="min-h-screen bg-gray-950 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
 
         <div className="flex items-center gap-3 mb-6">
@@ -464,21 +464,21 @@ export default function AssetDetailPage() {
           ].map((m) => (
             <div key={m.label} className="bg-gray-900 rounded-xl border border-gray-700 p-4">
               <p className="text-xs text-gray-400 mb-1">{m.label}</p>
-              <p className={`text-lg font-semibold ${m.color}`}>{m.value}</p>
+              <p className={`text-base sm:text-lg font-semibold truncate ${m.color}`}>{m.value}</p>
             </div>
           ))}
         </div>
 
         <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <div className="min-w-0">
               <h2 className="text-sm font-medium text-gray-300">มูลค่าและต้นทุนตามเวลา</h2>
-              <p className="text-xs text-gray-500 mt-0.5">เส้นน้ำเงิน = มูลค่าตลาด · เส้นเทาประ = ต้นทุนสะสม</p>
+              <p className="hidden sm:block text-xs text-gray-500 mt-0.5">เส้นน้ำเงิน = มูลค่าตลาด · เส้นเทาประ = ต้นทุนสะสม</p>
             </div>
-            <div className="flex items-center gap-3 text-xs text-gray-400">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" />ซื้อ</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" />ขาย</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" />Snapshot</span>
+            <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-400 shrink-0">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-green-500" />ซื้อ</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500" />ขาย</span>
+              <span className="hidden sm:flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" />Snapshot</span>
             </div>
           </div>
           <div className="flex items-center gap-1 mb-3">
@@ -510,11 +510,79 @@ export default function AssetDetailPage() {
         </div>
 
         <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-800">
+          <div className="px-4 sm:px-5 py-4 border-b border-gray-800">
             <h2 className="text-sm font-medium text-gray-300">ประวัติการบันทึก</h2>
             <p className="text-xs text-gray-500 mt-0.5">{txs.length} รายการ</p>
           </div>
-          <div className="overflow-x-auto">
+
+          {/* Mobile card view */}
+          <div className="sm:hidden divide-y divide-gray-800">
+            {pagedHistory.map((r, i) => {
+              const isSell = r.txType === "sell";
+              const isSnapshot = r.amount === 0;
+              const pl = r.totalValue - r.cumulativeCost;
+              const plPct = r.cumulativeCost > 0 ? (pl / r.cumulativeCost) * 100 : 0;
+              return (
+                <div key={i} className="px-4 py-3.5">
+                  {/* Row 1: date + type | P&L */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-300">{fmtDate(r.date)}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        isSnapshot
+                          ? "bg-gray-800 text-gray-300"
+                          : isSell ? "bg-red-900/50 text-red-300" : "bg-green-900/50 text-green-300"
+                      }`}>
+                        {isSnapshot ? "Snapshot" : isSell ? "ขาย" : "ซื้อ"}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${pl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {pl >= 0 ? "+" : ""}฿{fmt(pl)}
+                      </p>
+                      <p className={`text-[10px] ${plPct >= 0 ? "text-green-400" : "text-red-400"}`}>
+                        {plPct >= 0 ? "+" : ""}{plPct.toFixed(2)}%
+                      </p>
+                    </div>
+                  </div>
+                  {/* Row 2: cost invested | total value */}
+                  <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+                    <span>ลงทุน {r.amount === 0 ? "—" : `฿${fmt(r.amount)}`}</span>
+                    <span>มูลค่า <span className="text-gray-300">฿{fmt(r.totalValue)}</span></span>
+                  </div>
+                  {/* Row 3: units (if any) | actions */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-gray-600">
+                      {r.units != null ? `${fmtUnits(r.units)} ${unitsLabel}` : ""}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEdit(r)}
+                        aria-label="แก้ไขรายการนี้"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-900/20 transition"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => { setDeleteError(""); setConfirmDelete(r); }}
+                        aria-label="ลบรายการนี้"
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-800 text-xs text-gray-400">
@@ -590,6 +658,7 @@ export default function AssetDetailPage() {
               </tbody>
             </table>
           </div>
+
           <Pagination
             total={sortedHistory.length}
             page={page}

@@ -357,16 +357,16 @@ export default function DashboardPage() {
   const totalPLPct = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
 
   return (
-    <main className="min-h-screen bg-gray-950 p-6">
+    <main className="min-h-screen bg-gray-950 p-4 sm:p-6">
       <div className="max-w-5xl mx-auto">
 
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-50">Portfolio Dashboard</h1>
-            <p className="text-sm text-gray-400 mt-1">ภาพรวมการลงทุนของคุณ</p>
+        <div className="flex items-center justify-between mb-5 gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-50">Portfolio Dashboard</h1>
+            <p className="text-xs sm:text-sm text-gray-400 mt-0.5">ภาพรวมการลงทุนของคุณ</p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="hidden sm:block text-right">
               <p className="text-sm font-medium text-gray-100">{userName}</p>
               <p className="text-xs text-gray-500">{userEmail}</p>
             </div>
@@ -380,7 +380,7 @@ export default function DashboardPage() {
             {admin && (
               <Link
                 href="/admin"
-                className="px-3 py-2 text-sm text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                className="px-2 sm:px-3 py-2 text-xs sm:text-sm text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
               >
                 Admin
               </Link>
@@ -388,9 +388,13 @@ export default function DashboardPage() {
             <button
               onClick={handleLogout}
               disabled={loggingOut}
-              className="px-3 py-2 text-sm text-gray-400 hover:text-red-400 border border-gray-700 hover:border-red-700 rounded-lg transition disabled:opacity-50"
+              className="p-2 sm:px-3 sm:py-2 text-gray-400 hover:text-red-400 border border-gray-700 hover:border-red-700 rounded-lg transition disabled:opacity-50"
+              title="ออกจากระบบ"
             >
-              {loggingOut ? "กำลังออก..." : "ออกจากระบบ"}
+              <span className="hidden sm:inline text-sm">{loggingOut ? "กำลังออก..." : "ออกจากระบบ"}</span>
+              <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
             </button>
           </div>
         </div>
@@ -428,7 +432,7 @@ export default function DashboardPage() {
           ].map((m) => (
             <div key={m.label} className="bg-gray-900 rounded-xl border border-gray-700 p-4">
               <p className="text-xs text-gray-400 mb-1">{m.label}</p>
-              <p className={`text-xl font-semibold ${m.color}`}>{m.value}</p>
+              <p className={`text-base sm:text-xl font-semibold ${m.color} truncate`}>{m.value}</p>
             </div>
           ))}
         </div>
@@ -546,7 +550,53 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              {/* Mobile card view */}
+              <div className="sm:hidden divide-y divide-gray-800">
+                {pagedAssets.map((a) => (
+                  <div
+                    key={a.symbol}
+                    onClick={() => router.push(`/asset/${encodeURIComponent(a.symbol)}`)}
+                    className="px-4 py-3.5 hover:bg-gray-800/60 active:bg-gray-800 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-semibold text-gray-300 shrink-0">
+                          {a.symbol.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-medium text-gray-100 text-sm truncate">{a.symbol}</p>
+                            {livePrices[a.symbol] != null && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/50 text-green-300 font-semibold flex items-center gap-0.5 shrink-0">
+                                <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                                LIVE
+                              </span>
+                            )}
+                          </div>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${TYPE_COLOR[a.assetType] || "bg-gray-800 text-gray-300"}`}>
+                            {TYPE_LABEL[a.assetType] || a.assetType}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 ml-2">
+                        <p className={`text-sm font-semibold ${a.pl >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {a.pl >= 0 ? "+" : ""}฿{fmt(a.pl)}
+                        </p>
+                        <p className={`text-xs ${a.plPct >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {a.plPct >= 0 ? "+" : ""}{a.plPct.toFixed(2)}%
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 pl-10">
+                      <span>ต้นทุน ฿{fmt(a.totalCost)}</span>
+                      <span>มูลค่า ฿{fmt(a.currentValue)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table view */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-800 text-xs text-gray-400">
@@ -601,6 +651,7 @@ export default function DashboardPage() {
                   </tbody>
                 </table>
               </div>
+
               <Pagination
                 total={sortedAssets.length}
                 page={page}
