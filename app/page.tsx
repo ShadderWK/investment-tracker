@@ -319,9 +319,31 @@ export default function DashboardPage() {
     }
   }
   const series = useMemo(() => {
-    if (historyRows && historyRows.length > 0) return historyRows;
-    return computePortfolioSeries(transactions);
-  }, [historyRows, transactions]);
+    const rows = historyRows && historyRows.length > 0
+      ? historyRows
+      : computePortfolioSeries(transactions);
+
+    // When live prices are available, patch the last data point (or append today)
+    // so the chart tail matches the stats cards exactly.
+    if (Object.keys(livePrices).length > 0 && rows.length > 0) {
+      const liveTotalValue = baseAssets.reduce((sum, a) => {
+        const live = livePrices[a.symbol];
+        return sum + (live != null ? live : a.currentValue);
+      }, 0);
+      const todayStr = new Date().toISOString().split("T")[0];
+      const todayMs = new Date(todayStr).getTime();
+      const last = rows[rows.length - 1];
+      const patched = [...rows];
+      if (last.date === todayStr) {
+        patched[patched.length - 1] = { ...last, totalValue: liveTotalValue };
+      } else {
+        patched.push({ x: todayMs, date: todayStr, cumulativeCost: last.cumulativeCost, totalValue: liveTotalValue });
+      }
+      return patched;
+    }
+
+    return rows;
+  }, [historyRows, transactions, livePrices, baseAssets]);
   const filteredSeries = useMemo(() => {
     if (chartRange === "all") return series;
     const days = { "1d": 1, "1w": 7, "1m": 30, "3m": 90, "6m": 180, "1y": 365 }[chartRange];
