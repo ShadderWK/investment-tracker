@@ -62,6 +62,35 @@ async function fetchSecCurrentNav(projId: string): Promise<number | null> {
   });
 }
 
+/** Scrape current NAV from KAsset fund page (no API key required) */
+async function fetchKassetCurrentNav(fundSlug: string): Promise<number | null> {
+  return getCached(`kasset:current:${fundSlug}`, async () => {
+    const url = `https://www.kasikornasset.com/kasset/en/mutual-fund/fund-template/Pages/${fundSlug}.aspx`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; NAV-fetcher/1.0)" },
+      next: { revalidate: 0 },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    // Multiple regex patterns targeting the NAV value on KAsset fund pages
+    const patterns = [
+      /NAV\s+per\s+unit[\s\S]{0,400}?([\d]+\.[\d]{2,6})/i,
+      /offer\s+price[\s\S]{0,200}?([\d]+\.[\d]{2,6})/i,
+      /bid\s+price[\s\S]{0,200}?([\d]+\.[\d]{2,6})/i,
+      /"nav"\s*:\s*"?([\d]+\.[\d]{2,6})"?/i,
+      /nav[^>]{0,40}>([\d]+\.[\d]{2,6})</i,
+    ];
+    for (const pat of patterns) {
+      const m = html.match(pat);
+      if (m) {
+        const v = parseFloat(m[1].replace(/,/g, ""));
+        if (v > 0 && v < 100_000) return v; // sanity check: fund NAV in reasonable range
+      }
+    }
+    return null;
+  });
+}
+
 async function fetchSecHistoricalNav(projId: string, dateISO: string): Promise<number | null> {
   const d = new Date(dateISO);
   const start = new Date(d.getTime() - 3 * 86400000).toISOString().split("T")[0];
@@ -139,6 +168,17 @@ export async function POST(req: Request) {
           }
           const ratio = currentNav / historicalNav;
           return { symbol: item.symbol, source: "sec_fund", liveValue: item.snapshotValue * ratio, currentPrice: currentNav, ratio, error: null };
+        }
+
+        if (source.kind === "kasset_fund") {
+          const currentNav = await fetchKassetCurrentNav(source.fundSlug);
+          if (currentNav == null) {
+            return { symbol: item.symbol, source: "kasset_fund", liveValue: null, currentPrice: null, ratio: null, error: "ดึง NAV ไม่ได้" };
+          }
+          if (item.units != null) {
+            return { symbol: item.symbol, source: "kasset_fund", liveValue: item.units * currentNav, currentPrice: currentNav, ratio: null, error: null };
+          }
+          return { symbol: item.symbol, source: "kasset_fund", liveValue: null, currentPrice: currentNav, ratio: null, error: "ไม่มีข้อมูลหน่วยลงทุน" };
         }
       } catch (e) {
         return { symbol: item.symbol, source: source.kind, liveValue: null, currentPrice: null, ratio: null, error: e instanceof Error ? e.message : String(e) };
