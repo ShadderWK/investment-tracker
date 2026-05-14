@@ -139,6 +139,7 @@ export default function DashboardPage() {
   const [chartRange, setChartRange] = useState<"1d" | "1w" | "1m" | "3m" | "6m" | "1y" | "all">("all");
   const [admin, setAdmin] = useState(false);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [liveUnitPrices, setLiveUnitPrices] = useState<Record<string, number>>({});
   const [livePriceError, setLivePriceError] = useState("");
   const [refreshingPrices, setRefreshingPrices] = useState(false);
   const [pricesFetchedAt, setPricesFetchedAt] = useState<string | null>(null);
@@ -303,10 +304,13 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       const next: Record<string, number> = {};
-      (data.prices as { symbol: string; liveValue: number | null }[]).forEach((p) => {
+      const nextUnit: Record<string, number> = {};
+      (data.prices as { symbol: string; liveValue: number | null; currentPrice: number | null }[]).forEach((p) => {
         if (p.liveValue != null) next[p.symbol] = p.liveValue;
+        if (p.currentPrice != null) nextUnit[p.symbol] = p.currentPrice;
       });
       setLivePrices(next);
+      setLiveUnitPrices(nextUnit);
       setPricesFetchedAt(data.fetched_at);
     } catch (e) {
       setLivePriceError(e instanceof Error ? e.message : String(e));
@@ -589,7 +593,12 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex justify-between text-xs text-gray-500 pl-10">
                       <span>ต้นทุน ฿{fmt(a.totalCost)}</span>
-                      <span>มูลค่า ฿{fmt(a.currentValue)}</span>
+                      <span>
+                        {liveUnitPrices[a.symbol] != null && (
+                          <span className="text-blue-400 mr-2">฿{fmt(liveUnitPrices[a.symbol])}/หน่วย</span>
+                        )}
+                        มูลค่า ฿{fmt(a.currentValue)}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -603,6 +612,7 @@ export default function DashboardPage() {
                       <th className="text-left px-5 py-3 font-medium">ชื่อสินทรัพย์</th>
                       <th className="text-right px-5 py-3 font-medium">รายการ</th>
                       <th className="text-right px-5 py-3 font-medium">ต้นทุนรวม</th>
+                      <th className="text-right px-5 py-3 font-medium">ราคา/หน่วย</th>
                       <th className="text-right px-5 py-3 font-medium">มูลค่าปัจจุบัน</th>
                       <th className="text-right px-5 py-3 font-medium">กำไร/ขาดทุน</th>
                     </tr>
@@ -637,6 +647,11 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-5 py-4 text-right text-gray-400">{a.txCount}</td>
                         <td className="px-5 py-4 text-right text-gray-400">฿{fmt(a.totalCost)}</td>
+                        <td className="px-5 py-4 text-right text-gray-400">
+                          {liveUnitPrices[a.symbol] != null
+                            ? <span className="text-blue-300">฿{fmt(liveUnitPrices[a.symbol])}</span>
+                            : <span className="text-gray-600">—</span>}
+                        </td>
                         <td className="px-5 py-4 text-right font-medium text-gray-100">฿{fmt(a.currentValue)}</td>
                         <td className="px-5 py-4 text-right">
                           <p className={`font-medium ${a.pl >= 0 ? "text-green-400" : "text-red-400"}`}>
